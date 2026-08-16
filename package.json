@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "profile": "vitest run tests/library-profile.test.ts --disable-console-intercept"
+    "profile": "vitest run tests/library-profile.test.ts --disable-console-intercept",
+    "rank-fields": "vitest run tests/defaults-sensitivity.test.ts --disable-console-intercept"
   },
   "keywords": [
     "retirement",
