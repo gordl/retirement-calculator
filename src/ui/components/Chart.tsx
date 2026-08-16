@@ -1,5 +1,5 @@
 import type { JSX } from 'preact'
-import type { LumpSum, Percentiles, YearLedger } from '../../engine/types'
+import type { Expense, LumpSum, Percentiles, YearLedger } from '../../engine/types'
 import { ACCOUNT_KINDS } from '../../engine/ledger'
 import { formatDollarsCompact } from '../format'
 
@@ -13,12 +13,15 @@ interface ChartProps {
    *  since a household with several of these would otherwise clutter every
    *  other marker off the chart. The caller decides whether to pass them. */
   lumpSums?: LumpSum[]
+  /** Irregular expenses to mark on the chart, at their start age and — if
+   *  they have one — their end age. Same opt-in reasoning as `lumpSums`. */
+  expenses?: Expense[]
 }
 
 interface Marker {
   index: number
   label: string
-  variant: 'retire' | 'ss' | 'depleted' | 'lumpsum'
+  variant: 'retire' | 'ss' | 'depleted' | 'lumpsum' | 'expense'
 }
 
 export type TextAnchor = 'start' | 'middle' | 'end'
@@ -93,7 +96,7 @@ function bandPath(lower: number[], upper: number[], x: (i: number) => number, y:
  *  model's percentile spread, if provided, draws as a fan behind it. No
  *  charting library — this is still simple enough to hand-roll and it
  *  keeps the bundle tiny. */
-export function BalanceChart({ ledger, startAge, band, lumpSums }: ChartProps): JSX.Element {
+export function BalanceChart({ ledger, startAge, band, lumpSums, expenses }: ChartProps): JSX.Element {
   const width = 640
   const height = 260
   const padding = { top: 46, right: 12, bottom: 24, left: 56 }
@@ -138,6 +141,23 @@ export function BalanceChart({ ledger, startAge, band, lumpSums }: ChartProps): 
       variant: 'lumpsum',
     })
   }
+  for (const expense of expenses ?? []) {
+    const name = expense.label || 'Expense'
+    const startIndex = expense.startAge - startAge
+    if (startIndex >= 0 && startIndex < n) {
+      markers.push({
+        index: startIndex,
+        label: `${name} starts: ${formatDollarsCompact(expense.annual)}/yr`,
+        variant: 'expense',
+      })
+    }
+    if (expense.endAge !== undefined) {
+      const endIndex = expense.endAge - startAge
+      if (endIndex >= 0 && endIndex < n) {
+        markers.push({ index: endIndex, label: `${name} ends`, variant: 'expense' })
+      }
+    }
+  }
 
   const markerBoxes: (LabelBox & { index: number })[] = markers.map((m, i) => {
     const mx = x(m.index)
@@ -160,9 +180,10 @@ export function BalanceChart({ ledger, startAge, band, lumpSums }: ChartProps): 
   const labelBands = assignLabelBands(markerBoxes)
   const lineHeight = 11
 
-  const label = bandValues
-    ? 'Projected portfolio balance over time, with a percentile spread of outcomes, and retirement, Social Security, and depletion marked'
-    : 'Projected portfolio balance over time, with retirement, Social Security, and depletion marked'
+  const markedEvents = ['retirement', 'Social Security', 'depletion']
+  if (markers.some((m) => m.variant === 'lumpsum')) markedEvents.push('one-time amounts')
+  if (markers.some((m) => m.variant === 'expense')) markedEvents.push('irregular expenses')
+  const label = `Projected portfolio balance over time${bandValues ? ', with a percentile spread of outcomes,' : ','} and ${markedEvents.join(', ')} marked`
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} class="chart" role="img" aria-label={label}>

@@ -215,6 +215,7 @@ export function App(): JSX.Element {
         startAge={state.primary.age}
         realReturn={state.realReturn}
         lumpSums={scenario.lumpSums}
+        expenses={scenario.expenses}
       />
 
       <form class="form" onSubmit={(e) => e.preventDefault()}>

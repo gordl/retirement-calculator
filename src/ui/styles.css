@@ -10,6 +10,7 @@
   --bad-bg: #fffbeb;
   --card-bg: #f9fafb;
   --band: #7c3aed;
+  --expense: #0f766e;
   color-scheme: light dark;
 }
 
@@ -26,6 +27,7 @@
     --bad-bg: #241c0a;
     --card-bg: #171a23;
     --band: #a78bfa;
+    --expense: #2dd4bf;
   }
 }
 
@@ -312,6 +314,12 @@ body {
 .chart-marker--lumpsum .chart-marker-label {
   stroke: var(--good);
   fill: var(--good);
+}
+
+.chart-marker--expense .chart-marker-line,
+.chart-marker--expense .chart-marker-label {
+  stroke: var(--expense);
+  fill: var(--expense);
 }
 
 .ledger-table-wrap {

@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import type { LumpSum, Result } from '../../engine/types'
+import type { Expense, LumpSum, Result } from '../../engine/types'
 import { formatDollarsCompact, formatPercent } from '../format'
 import { Checkbox, InfoTip } from './Field'
 import { BalanceChart } from './Chart'
@@ -13,6 +13,7 @@ interface ResultPanelProps {
    *  sentence states the actual assumption instead of a hardcoded one. */
   realReturn: number
   lumpSums: LumpSum[]
+  expenses: Expense[]
 }
 
 const MODEL_INFO = {
@@ -42,12 +43,14 @@ function PercentileRange({ percentiles }: { percentiles: { p10: number; p50: num
 
 type PercentileSource = 'monteCarlo' | 'historical'
 
-export function ResultPanel({ result, startAge, realReturn, lumpSums }: ResultPanelProps): JSX.Element {
+export function ResultPanel({ result, startAge, realReturn, lumpSums, expenses }: ResultPanelProps): JSX.Element {
   const [showLedger, setShowLedger] = useState(false)
   const [showMethodology, setShowMethodology] = useState(false)
-  // Off by default — a household with several one-time amounts would
-  // otherwise crowd every other marker off the chart. Opt in, not opt out.
+  // Off by default — a household with several one-time amounts or irregular
+  // expenses would otherwise crowd every other marker off the chart. Opt
+  // in, not opt out.
   const [showLumpSums, setShowLumpSums] = useState(false)
+  const [showExpenses, setShowExpenses] = useState(false)
   // Prefer simulated markets by default — it's the model most people have
   // heard of, and there's always exactly as many of them as requested,
   // where the historical model is capped at ~98 real windows.
@@ -131,12 +134,20 @@ export function ResultPanel({ result, startAge, realReturn, lumpSums }: ResultPa
           onChange={setShowLumpSums}
         />
       )}
+      {expenses.length > 0 && (
+        <Checkbox
+          label={`Mark irregular expense${expenses.length > 1 ? 's' : ''} on the chart (${expenses.length})`}
+          checked={showExpenses}
+          onChange={setShowExpenses}
+        />
+      )}
 
       <BalanceChart
         ledger={path.ledger}
         startAge={startAge}
         band={selectedModel?.yearlyPercentiles}
         lumpSums={showLumpSums ? lumpSums : undefined}
+        expenses={showExpenses ? expenses : undefined}
       />
 
       {selectedModel && (
