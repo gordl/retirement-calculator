@@ -33,7 +33,7 @@ export const retired: Persona[] = [
     id: 'comfortable-retiree-69',
     narrative:
       'Retired three years ago from a utility company. Two Social Security checks, a paid-off house, and a portfolio that has so far gone up. Wants a sanity check, not a plan.',
-    weight: 0.05,
+    weight: 0.03,
     tier: 1,
     question: 'will-my-money-last',
     truth: scenario({
@@ -162,7 +162,7 @@ export const retired: Persona[] = [
     id: 'modest-retiree-75',
     narrative:
       'Retired postal worker. A small pension, Social Security, and $120k in an IRA she is careful not to touch. Owns her home outright.',
-    weight: 0.05,
+    weight: 0.028,
     tier: 1,
     question: 'will-my-money-last',
     truth: scenario({
@@ -286,5 +286,19 @@ export const retired: Persona[] = [
       spending: 29_000,
     }),
     knows: ['primary.currentAge', 'accounts.taxable.balance', 'incomes', 'spending.annual'],
+  },
+  {
+    id: 'cash-savings-retiree-74',
+    narrative:
+      'Retired seamstress. Never had access to an employer retirement plan in fifty years of piecework and alterations shops. Retired on Social Security alone with about $4,000 in a savings account.',
+    weight: 0.045,
+    tier: 1,
+    question: 'will-my-money-last',
+    truth: scenario({
+      people: [primary({ age: 74, salary: 0, retireAge: 65, ss: ssKnown(1_310, 66) })],
+      accounts: [],
+      spending: 20_000,
+    }),
+    knows: ['primary.currentAge', 'primary.ss.monthlyAtFRA'],
   },
 ]

@@ -230,6 +230,34 @@ describe('population coverage', () => {
     expect(PERSONAS.filter((p) => p.truth.lumpSums.length > 0).length).toBeGreaterThan(1)
   })
 
+  it('does not overrepresent account ownership relative to the 2022 SCF', () => {
+    // Federal Reserve, "Changes in US Family Finances from 2019 to 2022":
+    // 54.3% of families hold any retirement account (401k/IRA, traditional or
+    // Roth combined); 21.0% hold stock directly outside retirement accounts.
+    // https://www.federalreserve.gov/publications/october-2023-changes-in-us-family-finances-from-2019-to-2022.htm
+    //
+    // A calculator whose test population is 87% 401k-holders and 45%
+    // brokerage-holders (an earlier version of this library was, before this
+    // test existed) is being validated against a population far wealthier
+    // and more invested than the country it claims to represent. These bounds
+    // are deliberately loose — hitting the SCF figures exactly with 50
+    // hand-authored households would be false precision — but they catch the
+    // library drifting back toward that failure mode.
+    const weightWhere = (pred: (p: Persona) => boolean) =>
+      PERSONAS.filter(pred).reduce((sum, p) => sum + (WEIGHTS.get(p.id) ?? 0), 0)
+
+    const pretaxOrRoth = weightWhere((p) =>
+      p.truth.accounts.some((a) => a.kind === 'pretax' || a.kind === 'roth'),
+    )
+    expect(pretaxOrRoth).toBeLessThan(0.8) // SCF reference: 0.543
+
+    const taxable = weightWhere((p) => p.truth.accounts.some((a) => a.kind === 'taxable'))
+    expect(taxable).toBeLessThan(0.5) // SCF reference: 0.21
+
+    const noTrackedAccounts = weightWhere((p) => p.truth.accounts.length === 0)
+    expect(noTrackedAccounts).toBeGreaterThan(0.15) // estimated reference: ~0.35-0.4
+  })
+
   it('covers both single and married households in meaningful numbers', () => {
     // Census puts married-couple households near 48%. This library sits a few
     // points under that, because pushing it higher would distort the age

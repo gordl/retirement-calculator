@@ -32,8 +32,8 @@ export const accumulating: Persona[] = [
   {
     id: 'first-job-saver-27',
     narrative:
-      'Software engineer two years out of school. Contributes 6% to get the full match and has not thought about it since.',
-    weight: 0.035,
+      'Software engineer two years out of school. On the high-deductible health plan for the lower premium, so payroll also skims off a bit for an HSA. Contributes 6% to the 401(k) to get the full match and has not thought about any of it since.',
+    weight: 0.018,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -41,6 +41,7 @@ export const accumulating: Persona[] = [
       accounts: [
         account('pretax', 21_000, { contribution: 5_520, employerMatch: 2_760 }),
         account('roth', 6_500, { contribution: 3_000 }),
+        account('hsa', 3_200, { contribution: 1_500 }),
       ],
       spending: 62_000,
     }),
@@ -70,7 +71,7 @@ export const accumulating: Persona[] = [
     id: 'teacher-couple-34',
     narrative:
       'Two public school teachers, both in the state pension system. One is in a non-covered district and will get no Social Security. Small 403(b) balances on the side.',
-    weight: 0.025,
+    weight: 0.015,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -112,7 +113,7 @@ export const accumulating: Persona[] = [
     id: 'dual-income-tech-35',
     narrative:
       'Married, both working, no kids yet. Maxing both 401(k)s and an HSA. Wants to know whether they could stop at 55.',
-    weight: 0.03,
+    weight: 0.018,
     tier: 1,
     question: 'can-i-retire-at',
     truth: scenario({
@@ -286,7 +287,7 @@ export const accumulating: Persona[] = [
     id: 'late-starter-44',
     narrative:
       'Started saving seriously at 40 after a divorce reset everything. Knows he is behind and wants to know how far.',
-    weight: 0.03,
+    weight: 0.018,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -301,5 +302,20 @@ export const accumulating: Persona[] = [
       'accounts.pretax.balance',
       'accounts.pretax.contribution',
     ],
+  },
+  {
+    id: 'gig-no-plan-36',
+    narrative:
+      'Full-time rideshare and delivery driver, self-employed for six years. Has meant to open a SEP-IRA every tax season and never has. Whatever is left over sits in a checking account.',
+    weight: 0.05,
+    tier: 1,
+    question: 'am-i-on-track',
+    truth: scenario({
+      people: [primary({ age: 36, salary: 42_000, retireAge: 67 })],
+      accounts: [],
+      spending: 34_000,
+    }),
+    knows: ['primary.currentAge', 'primary.salary'],
+    knownGaps: ['Self-employment income variability and the option to open a SEP-IRA are not modeled as choices'],
   },
 ]

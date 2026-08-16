@@ -15,7 +15,7 @@ export const midcareer: Persona[] = [
     id: 'median-household-48',
     narrative:
       'Married, one kid left at home, combined income a bit above median. Balance is close to the national median for this age. No pension, no plan, vaguely worried.',
-    weight: 0.05,
+    weight: 0.025,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -45,7 +45,7 @@ export const midcareer: Persona[] = [
     id: 'sandwich-generation-49',
     narrative:
       'Paying part of her mother’s assisted living while the first of two kids starts college. Saving has been flat for four years and she knows it.',
-    weight: 0.02,
+    weight: 0.012,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -120,7 +120,7 @@ export const midcareer: Persona[] = [
     id: 'divorced-restart-47',
     narrative:
       'Divorce two years ago split the 401(k) down the middle via QDRO. Renting now, rebuilding, and the number she is starting from feels like a punch.',
-    weight: 0.02,
+    weight: 0.012,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -143,7 +143,7 @@ export const midcareer: Persona[] = [
     id: 'job-hopper-51',
     narrative:
       'Five employers in twenty years and a 401(k) left at three of them. Has a rough idea of the total but would have to log into four sites to be sure.',
-    weight: 0.02,
+    weight: 0.012,
     tier: 1,
     question: 'am-i-on-track',
     truth: scenario({
@@ -313,5 +313,22 @@ export const midcareer: Persona[] = [
       'accounts.pretax.balance',
       'accounts.taxable.balance',
     ],
+  },
+  {
+    id: 'restaurant-manager-46',
+    narrative:
+      'Assistant manager at a chain restaurant, married to a warehouse picker. Neither job has ever offered a retirement plan. The household keeps about $3,000 as an emergency cushion and nothing else.',
+    weight: 0.045,
+    tier: 1,
+    question: 'am-i-on-track',
+    truth: scenario({
+      people: [
+        primary({ age: 46, salary: 41_000, retireAge: 67 }),
+        spouse({ age: 44, salary: 37_000, retireAge: 67 }),
+      ],
+      accounts: [],
+      spending: 58_000,
+    }),
+    knows: ['primary.currentAge', 'primary.salary', 'spouse.currentAge', 'spouse.salary'],
   },
 ]

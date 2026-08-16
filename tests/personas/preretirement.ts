@@ -17,7 +17,7 @@ export const preretirement: Persona[] = [
     id: 'median-preretiree-58',
     narrative:
       'Married, kids grown, house nearly paid off. Their balance is right at the national median for the age, which is far less than the internet says it should be.',
-    weight: 0.045,
+    weight: 0.025,
     tier: 1,
     question: 'can-i-retire-at',
     truth: scenario({
@@ -49,7 +49,7 @@ export const preretirement: Persona[] = [
     id: 'affluent-couple-61',
     narrative:
       'Both professionals, want to stop at 63 and travel hard for a decade before slowing down. Have saved well and want confirmation, not advice.',
-    weight: 0.025,
+    weight: 0.018,
     tier: 1,
     question: 'can-i-retire-at',
     truth: scenario({
@@ -97,7 +97,7 @@ export const preretirement: Persona[] = [
     id: 'federal-fers-59',
     narrative:
       'Twenty-six years in a federal agency. FERS pension, a healthy TSP, and the Social Security supplement until 62. Retiring at 60 with confidence.',
-    weight: 0.015,
+    weight: 0.01,
     tier: 1,
     question: 'can-i-retire-at',
     truth: scenario({
@@ -187,7 +187,7 @@ export const preretirement: Persona[] = [
     id: 'forced-early-retirement-57',
     narrative:
       'Laid off at 56 in a restructuring and has been looking for eighteen months. Not retired by choice and not sure whether to call it. Every month of drawdown before 62 hurts twice.',
-    weight: 0.015,
+    weight: 0.01,
     tier: 1,
     question: 'will-my-money-last',
     truth: scenario({
@@ -366,5 +366,20 @@ export const preretirement: Persona[] = [
       'pensions',
       'accounts.pretax.balance',
     ],
+  },
+  {
+    id: 'self-employed-no-plan-56',
+    narrative:
+      'House painter, independent for thirty years. Always meant to set up a SEP-IRA once business was steady; it never was. Counting on Social Security and whatever the tools and truck are worth when he finally stops.',
+    weight: 0.045,
+    tier: 1,
+    question: 'will-my-money-last',
+    truth: scenario({
+      people: [primary({ age: 56, salary: 48_000, retireAge: 68, ss: ssAuto(68) })],
+      accounts: [],
+      spending: 36_000,
+    }),
+    knows: ['primary.currentAge', 'primary.salary'],
+    knownGaps: ['The value of tools/vehicle as a working-capital asset at retirement is not modeled'],
   },
 ]
