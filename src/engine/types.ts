@@ -225,6 +225,12 @@ export interface YearLedger {
 
   contributions: Dollars
   growth: Dollars
+  /**
+   * Income that exceeded the year's need and was saved rather than spent.
+   * Common for Social-Security-heavy households in low-spending years. Recorded
+   * explicitly so the year's balances reconcile exactly.
+   */
+  savedSurplus: Dollars
 
   // Outflows
   spendingNeed: Dollars
