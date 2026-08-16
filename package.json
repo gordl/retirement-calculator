@@ -1,0 +1,33 @@
+{
+  "name": "retirement-calculator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The fastest way to determine retirement readiness. Single page, state in the URL, no backend.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "retirement",
+    "calculator",
+    "monte-carlo",
+    "financial-planning"
+  ],
+  "author": "Gord",
+  "license": "MIT",
+  "dependencies": {
+    "preact": "^10.27.2"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.2",
+    "fast-check": "^4.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^6.4.1",
+    "vitest": "^4.0.16"
+  }
+}
