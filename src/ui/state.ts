@@ -1,4 +1,4 @@
-import type { AccountKind, Scenario, SocialSecurity, SpendingPath } from '../engine/types'
+import type { AccountKind, Pension, Scenario, SocialSecurity, SpendingPath } from '../engine/types'
 import { estimateSpending } from '../engine/estimates'
 import {
   DEFAULT_ASSUMPTIONS,
@@ -24,6 +24,10 @@ export interface PersonState {
   ssMode: SSMode
   ssClaimAge: number
   ssMonthly: number
+  pensionEnabled: boolean
+  pensionAnnual: number
+  pensionStartAge: number
+  pensionCola: boolean
 }
 
 export interface AccountState {
@@ -74,6 +78,10 @@ const blankPerson = (age: number): PersonState => ({
   ssMode: 'auto',
   ssClaimAge: DEFAULT_SS_CLAIM_AGE,
   ssMonthly: 0,
+  pensionEnabled: false,
+  pensionAnnual: 0,
+  pensionStartAge: DEFAULT_RETIRE_AGE,
+  pensionCola: false,
 })
 
 /**
@@ -178,10 +186,30 @@ export function toScenario(state: UIState): Scenario {
       }
     })
 
+  const pensions: Pension[] = []
+  if (state.primary.pensionEnabled && state.primary.pensionAnnual > 0) {
+    pensions.push({
+      label: 'Your pension',
+      owner: 'primary',
+      annual: state.primary.pensionAnnual,
+      startAge: state.primary.pensionStartAge,
+      cola: state.primary.pensionCola,
+    })
+  }
+  if (state.hasSpouse && state.spouse.pensionEnabled && state.spouse.pensionAnnual > 0) {
+    pensions.push({
+      label: "Spouse's pension",
+      owner: 'spouse',
+      annual: state.spouse.pensionAnnual,
+      startAge: state.spouse.pensionStartAge,
+      cola: state.spouse.pensionCola,
+    })
+  }
+
   return {
     people,
     accounts,
-    pensions: [],
+    pensions,
     incomes: [],
     expenses: [],
     lumpSums: [],
@@ -196,7 +224,14 @@ export function toScenario(state: UIState): Scenario {
   }
 }
 
-function fromPerson(p: Scenario['people'][number]): PersonState {
+/**
+ * `pension` is that person's own pension, if the scenario has one — matched
+ * by owner before this is called. The engine allows any number of pensions
+ * per person; the form allows one, which is the shape everyone but a couple
+ * of edge-case households actually has. A second one is preserved on the URL
+ * but won't round-trip into the form.
+ */
+function fromPerson(p: Scenario['people'][number], pension: Pension | undefined): PersonState {
   const ss = p.socialSecurity
   return {
     age: p.currentAge,
@@ -206,12 +241,18 @@ function fromPerson(p: Scenario['people'][number]): PersonState {
     ssMode: ss.mode,
     ssClaimAge: ss.mode === 'none' ? DEFAULT_SS_CLAIM_AGE : ss.claimAge,
     ssMonthly: ss.mode === 'manual' ? ss.monthlyAtFRA : 0,
+    pensionEnabled: pension !== undefined,
+    pensionAnnual: pension?.annual ?? 0,
+    pensionStartAge: pension?.startAge ?? p.retireAge,
+    pensionCola: pension?.cola ?? false,
   }
 }
 
 export function fromScenario(scenario: Scenario): UIState {
   const primary = scenario.people.find((p) => p.id === 'primary')!
   const spouse = scenario.people.find((p) => p.id === 'spouse')
+  const primaryPension = scenario.pensions.find((pn) => pn.owner === 'primary')
+  const spousePension = scenario.pensions.find((pn) => pn.owner === 'spouse')
 
   const accounts: AccountsState = {
     taxable: blankAccount(),
@@ -233,9 +274,9 @@ export function fromScenario(scenario: Scenario): UIState {
   }
 
   return {
-    primary: fromPerson(primary),
+    primary: fromPerson(primary, primaryPension),
     hasSpouse: !!spouse,
-    spouse: spouse ? fromPerson(spouse) : blankPerson(primary.currentAge),
+    spouse: spouse ? fromPerson(spouse, spousePension) : blankPerson(primary.currentAge),
     spendingAnnual: scenario.spending.annual,
     spendingTouched: true, // a decoded URL always carries an explicit value
     spendingPath: scenario.spending.path,

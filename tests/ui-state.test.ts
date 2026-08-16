@@ -46,4 +46,74 @@ describe('UI state conversions', () => {
     const state = fromScenario(scenario)
     expect(state.spendingTouched).toBe(true)
   })
+
+  describe('pensions', () => {
+    it('omits a pension entirely when not enabled', () => {
+      const scenario = toScenario(exampleState())
+      expect(scenario.pensions).toEqual([])
+    })
+
+    it('omits a pension with an enabled checkbox but no amount entered', () => {
+      const state = exampleState()
+      state.primary.pensionEnabled = true
+      state.primary.pensionAnnual = 0
+      expect(toScenario(state).pensions).toEqual([])
+    })
+
+    it('includes an enabled pension with an amount, owned by the right person', () => {
+      const state = exampleState()
+      state.primary.pensionEnabled = true
+      state.primary.pensionAnnual = 24_000
+      state.primary.pensionStartAge = 65
+      state.primary.pensionCola = true
+
+      const pensions = toScenario(state).pensions
+      expect(pensions).toHaveLength(1)
+      expect(pensions[0]).toMatchObject({
+        owner: 'primary',
+        annual: 24_000,
+        startAge: 65,
+        cola: true,
+      })
+    })
+
+    it('supports independent pensions for both people', () => {
+      const state = exampleState()
+      state.hasSpouse = true
+      state.primary.pensionEnabled = true
+      state.primary.pensionAnnual = 20_000
+      state.spouse.pensionEnabled = true
+      state.spouse.pensionAnnual = 15_000
+      state.spouse.pensionCola = true
+
+      const pensions = toScenario(state).pensions
+      expect(pensions).toHaveLength(2)
+      expect(pensions.find((p) => p.owner === 'primary')).toMatchObject({ annual: 20_000, cola: false })
+      expect(pensions.find((p) => p.owner === 'spouse')).toMatchObject({ annual: 15_000, cola: true })
+    })
+
+    it('round-trips a pension through fromScenario(toScenario(s))', () => {
+      const state = exampleState()
+      state.primary.pensionEnabled = true
+      state.primary.pensionAnnual = 30_000
+      state.primary.pensionStartAge = 62
+      state.primary.pensionCola = false
+
+      const original = toScenario(state)
+      const rebuilt = toScenario(fromScenario(original))
+      expect(rebuilt).toEqual(original)
+    })
+
+    it('round-trips a pension through the URL codec', () => {
+      const state = exampleState()
+      state.primary.pensionEnabled = true
+      state.primary.pensionAnnual = 18_500
+      state.primary.pensionStartAge = 67
+      state.primary.pensionCola = true
+
+      const scenario = toScenario(state)
+      const decoded = decode(encode(scenario))
+      expect(decoded.pensions).toEqual(scenario.pensions)
+    })
+  })
 })

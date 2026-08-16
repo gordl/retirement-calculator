@@ -78,6 +78,53 @@ function SocialSecurityDetail({ people }: { people: import('../engine/types').Pe
   )
 }
 
+interface PensionFieldsProps {
+  label: string
+  startAgeMin: number
+  person: import('./state').PersonState
+  onChange: (patch: Partial<import('./state').PersonState>) => void
+}
+
+/** A defined-benefit pension: amount, when it starts, and whether it keeps
+ *  pace with inflation. One per person — see the note on fromPerson in
+ *  state.ts for the (rare) case that doesn't cover. */
+function PensionFields({ label, startAgeMin, person, onChange }: PensionFieldsProps): JSX.Element {
+  return (
+    <>
+      <Checkbox
+        label={label}
+        checked={person.pensionEnabled}
+        onChange={(pensionEnabled) => onChange({ pensionEnabled })}
+      />
+      {person.pensionEnabled && (
+        <>
+          <div class="field-grid">
+            <NumberField
+              label="Annual pension amount"
+              value={person.pensionAnnual}
+              step={1000}
+              prefix="$"
+              onChange={(n) => onChange({ pensionAnnual: n })}
+            />
+            <NumberField
+              label="Pension start age"
+              value={person.pensionStartAge}
+              min={startAgeMin}
+              max={80}
+              onChange={(n) => onChange({ pensionStartAge: n })}
+            />
+          </div>
+          <Checkbox
+            label="Adjusts for inflation (COLA) — most public pensions do, most private ones don't"
+            checked={person.pensionCola}
+            onChange={(pensionCola) => onChange({ pensionCola })}
+          />
+        </>
+      )}
+    </>
+  )
+}
+
 /**
  * Field order here is not a design guess — it follows tests/harness/sensitivity.ts
  * (`npm run rank-fields`), which measures how often each field actually
@@ -194,6 +241,21 @@ export function App(): JSX.Element {
                 <NumberField label="Spouse's retirement age" value={state.spouse.retireAge} min={state.spouse.age} max={80}
                   onChange={(n) => update({ spouse: { ...state.spouse, retireAge: n } })} />
               </div>
+            )}
+
+            <PensionFields
+              label="I have a pension"
+              startAgeMin={state.primary.age}
+              person={state.primary}
+              onChange={(patch) => update({ primary: { ...state.primary, ...patch } })}
+            />
+            {state.hasSpouse && (
+              <PensionFields
+                label="My spouse has a pension"
+                startAgeMin={state.spouse.age}
+                person={state.spouse}
+                onChange={(patch) => update({ spouse: { ...state.spouse, ...patch } })}
+              />
             )}
 
             <div class="field-grid">
