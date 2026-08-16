@@ -12,22 +12,23 @@ import type {
   SocialSecurity,
   Spending,
 } from '../../src/engine/types'
+import {
+  DEFAULT_ASSUMPTIONS,
+  DEFAULT_PLAN_TO_AGE,
+  DEFAULT_RETIRE_AGE,
+  DEFAULT_SALARY_GROWTH,
+  DEFAULT_SS_CLAIM_AGE,
+} from '../../src/url/defaults'
 
 /**
  * Builders that keep persona definitions readable.
  *
- * These deliberately mirror the app's own defaults so a persona file only has
- * to state what makes that household distinctive. A persona that spells out
- * every field is a persona nobody will maintain.
+ * These deliberately mirror the app's own defaults (src/url/defaults.ts) so a
+ * persona file only has to state what makes that household distinctive. A
+ * persona that spells out every field is a persona nobody will maintain.
  */
 
-export const BASE_ASSUMPTIONS: Assumptions = {
-  inflation: 0.025,
-  realReturn: 0.05,
-  stockAllocation: 0.6,
-  effectiveTaxRate: 0.15,
-  withdrawalOrder: ['taxable', 'pretax', 'roth', 'hsa'],
-}
+export const BASE_ASSUMPTIONS: Assumptions = DEFAULT_ASSUMPTIONS
 
 interface PersonSpec {
   age: number
@@ -50,23 +51,23 @@ function buildPerson(id: 'primary' | 'spouse', spec: PersonSpec): Person {
   return {
     id,
     currentAge: spec.age,
-    retireAge: spec.retireAge ?? 65,
-    planToAge: spec.planToAge ?? 92,
+    retireAge: spec.retireAge ?? DEFAULT_RETIRE_AGE,
+    planToAge: spec.planToAge ?? DEFAULT_PLAN_TO_AGE,
     salary: spec.salary ?? 0,
-    salaryGrowth: spec.salaryGrowth ?? 0.005,
-    socialSecurity: spec.ss ?? { mode: 'auto', claimAge: 67 },
+    salaryGrowth: spec.salaryGrowth ?? DEFAULT_SALARY_GROWTH,
+    socialSecurity: spec.ss ?? { mode: 'auto', claimAge: DEFAULT_SS_CLAIM_AGE },
   }
 }
 
 /** Social Security estimated from earnings history — the default path. */
-export const ssAuto = (claimAge = 67, yearsWorked?: number): SocialSecurity => ({
+export const ssAuto = (claimAge = DEFAULT_SS_CLAIM_AGE, yearsWorked?: number): SocialSecurity => ({
   mode: 'auto',
   claimAge,
   ...(yearsWorked !== undefined ? { yearsWorked } : {}),
 })
 
 /** They looked up their statement and know the number. */
-export const ssKnown = (monthlyAtFRA: Dollars, claimAge = 67): SocialSecurity => ({
+export const ssKnown = (monthlyAtFRA: Dollars, claimAge = DEFAULT_SS_CLAIM_AGE): SocialSecurity => ({
   mode: 'manual',
   claimAge,
   monthlyAtFRA,
