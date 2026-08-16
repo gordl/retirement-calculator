@@ -206,7 +206,7 @@ export const accumulating: Persona[] = [
   {
     id: 'median-family-41',
     narrative:
-      'Married with two kids, combined income near the US median. One 401(k) between them, a mortgage with nineteen years left, and no real plan.',
+      'Married with two kids, combined income near the US median. One 401(k) between them, a mortgage with nineteen years left, a few thousand dollars in a Fidelity brokerage account they check on their phone, and no real plan.',
     weight: 0.075,
     tier: 1,
     question: 'am-i-on-track',
@@ -215,7 +215,10 @@ export const accumulating: Persona[] = [
         primary({ age: 41, salary: 56_000, retireAge: 67 }),
         spouse({ age: 40, salary: 32_000, retireAge: 67 }),
       ],
-      accounts: [account('pretax', 45_000, { contribution: 2_800, employerMatch: 1_680 })],
+      accounts: [
+        account('pretax', 45_000, { contribution: 2_800, employerMatch: 1_680 }),
+        account('taxable', 8_000, { contribution: 1_200, costBasis: 6_500 }),
+      ],
       expenses: [
         { label: 'Mortgage', annual: 21_600, startAge: 41, endAge: 60, inflationAdjusted: false },
       ],
@@ -227,6 +230,7 @@ export const accumulating: Persona[] = [
       'spouse.currentAge',
       'spouse.salary',
       'accounts.pretax.balance',
+      'accounts.taxable.balance',
     ],
   },
   {
