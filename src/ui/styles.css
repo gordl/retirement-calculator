@@ -460,7 +460,9 @@ body {
 }
 
 .section-toggle {
-  display: block;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
   width: 100%;
   text-align: left;
   background: none;
@@ -468,9 +470,47 @@ body {
   border-radius: 8px;
   color: var(--accent);
   font-size: 0.9rem;
-  padding: 10px 14px;
+  padding: 12px 14px;
   margin-bottom: 16px;
   cursor: pointer;
+}
+
+.section-toggle--open {
+  border-style: solid;
+  margin-bottom: 8px;
+}
+
+.section-toggle-label {
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+/* The summary is what lets someone skip a section without opening it, so it
+   is the first thing to drop when there isn't room for both. */
+.section-toggle-summary {
+  color: var(--muted);
+  font-size: 0.78rem;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-toggle-chevron {
+  color: var(--muted);
+  font-size: 1rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+@media (max-width: 520px) {
+  .section-toggle {
+    flex-wrap: wrap;
+  }
+  .section-toggle-summary {
+    flex-basis: 100%;
+    white-space: normal;
+  }
 }
 
 .section-toggle:hover {

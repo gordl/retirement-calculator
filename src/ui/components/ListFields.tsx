@@ -138,6 +138,11 @@ interface LumpSumFieldsProps {
   onRemove: (id: string) => void
 }
 
+const DIRECTION_OPTIONS: { value: LumpSumItemState['direction']; label: string }[] = [
+  { value: 'cost', label: 'Money going out (a cost)' },
+  { value: 'inflow', label: 'Money coming in (a windfall)' },
+]
+
 export function LumpSumFields({ items, onAdd, onUpdate, onRemove }: LumpSumFieldsProps): JSX.Element {
   return (
     <div class="repeat-list">
@@ -147,28 +152,44 @@ export function LumpSumFields({ items, onAdd, onUpdate, onRemove }: LumpSumField
             <TextField
               label="What is it?"
               value={item.label}
-              placeholder="e.g. Inheritance, home sale, business sale"
+              placeholder={
+                item.direction === 'cost'
+                  ? 'e.g. New roof, replace the car, a wedding'
+                  : 'e.g. Inheritance, home sale, business sale'
+              }
               onChange={(label) => onUpdate(item.id, { label })}
             />
             <RemoveButton onClick={() => onRemove(item.id)} />
           </div>
+          <SelectField
+            label="Direction"
+            value={item.direction}
+            options={DIRECTION_OPTIONS}
+            onChange={(direction) => onUpdate(item.id, { direction })}
+          />
           <div class="field-grid">
             <NumberField label="Amount" value={item.amount} step={1000} prefix="$"
-              onChange={(n) => onUpdate(item.id, { amount: n })} />
+              onChange={(n) => onUpdate(item.id, { amount: Math.abs(n) })} />
             <NumberField label="At age" value={item.atAge} min={18} max={105}
               onChange={(n) => onUpdate(item.id, { atAge: n })} />
-            <SelectField
-              label="Goes into"
-              value={item.into}
-              options={ACCOUNT_OPTIONS}
-              onChange={(into) => onUpdate(item.id, { into })}
-            />
+            {/* Only an inflow needs a destination — a cost is funded across
+                accounts in withdrawal order, so asking would be noise. */}
+            {item.direction === 'inflow' && (
+              <SelectField
+                label="Goes into"
+                value={item.into}
+                options={ACCOUNT_OPTIONS}
+                onChange={(into) => onUpdate(item.id, { into })}
+              />
+            )}
           </div>
-          <Checkbox
-            label="Taxable when received"
-            checked={item.taxable}
-            onChange={(taxable) => onUpdate(item.id, { taxable })}
-          />
+          {item.direction === 'inflow' && (
+            <Checkbox
+              label="Taxable when received"
+              checked={item.taxable}
+              onChange={(taxable) => onUpdate(item.id, { taxable })}
+            />
+          )}
         </div>
       ))}
       <button type="button" class="repeat-add" onClick={onAdd}>

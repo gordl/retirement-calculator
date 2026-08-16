@@ -15,6 +15,7 @@ import {
   type ExpenseItemState,
   type IncomeItemState,
   type LumpSumItemState,
+  type SectionName,
   type UIState,
 } from './state'
 import { Checkbox, NumberField, SelectField } from './components/Field'
@@ -85,6 +86,34 @@ function SocialSecurityDetail({ people }: { people: import('../engine/types').Pe
   )
 }
 
+interface SectionToggleProps {
+  name: SectionName
+  label: string
+  /** One line naming what's inside, so a section can be skipped without
+   *  opening it — the whole point of collapsing them in the first place. */
+  summary: string
+  state: UIState
+  onToggle: (name: SectionName) => void
+}
+
+function SectionToggle({ name, label, summary, state, onToggle }: SectionToggleProps): JSX.Element {
+  const open = state.open[name]
+  return (
+    <button
+      type="button"
+      class={`section-toggle ${open ? 'section-toggle--open' : ''}`}
+      aria-expanded={open}
+      onClick={() => onToggle(name)}
+    >
+      <span class="section-toggle-label">{label}</span>
+      <span class="section-toggle-summary">{summary}</span>
+      <span class="section-toggle-chevron" aria-hidden="true">
+        {open ? '−' : '+'}
+      </span>
+    </button>
+  )
+}
+
 interface PensionFieldsProps {
   label: string
   startAgeMin: number
@@ -133,19 +162,30 @@ function PensionFields({ label, startAgeMin, person, onChange }: PensionFieldsPr
 }
 
 /**
- * Field order here is not a design guess — it follows tests/harness/sensitivity.ts
- * (`npm run rank-fields`), which measures how often each field actually
- * changes the readiness verdict across the weighted persona population.
+ * Form structure.
  *
- * Tier 1 (always visible): salary, pre-tax balance, spending, retire age —
- *   the four highest flip-rate fields, plus current age, which is structural
- *   and always required regardless of its own ranking.
- * Tier 2 ("More about you"): spouse, pre-tax contribution, known Social
- *   Security, Roth/taxable balances — the next band down.
- * Tier 3 ("Advanced"): everything that measured near zero population impact
- *   — HSA, claim-age tuning, the return/tax/allocation assumptions. These
- *   exist for the households they matter to, without costing everyone else
- *   a field.
+ * "About you" stays always-visible and holds the five highest-value fields
+ * per tests/harness/sensitivity.ts (`npm run rank-fields`): age, salary,
+ * retirement age, pre-tax balance, spending. That ranking still governs what
+ * earns a place on the first screen.
+ *
+ * Everything below it is grouped by *what it is* rather than by how advanced
+ * it is. The previous "More about you" / "Advanced" split was a ranking
+ * applied to whole sections, and it produced an incoherent result: irregular
+ * expenses sat two clicks closer than one-time amounts, even though one-time
+ * amounts apply to more households (32% vs 24%) — and "Advanced" mixed
+ * genuine assumptions nobody knows (return, tax rate) with plain facts about
+ * a household (rental income, an inheritance).
+ *
+ * The four sections now are:
+ *   Household & savings   — spouse, contributions, the other account balances
+ *   Income in retirement  — Social Security, pensions, other regular income
+ *   Expenses & one-time   — time-bounded costs, and money landing in one year
+ *   Assumptions           — only the knobs nobody can actually know
+ *
+ * Each carries a one-line summary so a section can be skipped without being
+ * opened, which is what keeps the friction budget intact despite there being
+ * more sections than before.
  */
 
 function loadInitialState(): UIState {
@@ -200,6 +240,9 @@ export function App(): JSX.Element {
     update({ lumpSums: state.lumpSums.map((l) => (l.id === id ? { ...l, ...patch } : l)) })
   const removeLumpSum = (id: string) => update({ lumpSums: state.lumpSums.filter((l) => l.id !== id) })
 
+  const toggleSection = (name: SectionName) =>
+    update({ open: { ...state.open, [name]: !state.open[name] } })
+
   return (
     <main class="app">
       <header class="app-header">
@@ -248,15 +291,14 @@ export function App(): JSX.Element {
           </div>
         </section>
 
-        <button
-          type="button"
-          class="section-toggle"
-          onClick={() => update({ showMore: !state.showMore })}
-        >
-          {state.showMore ? 'Hide more detail' : 'More about you'}
-        </button>
-
-        {state.showMore && (
+        <SectionToggle
+          name="household"
+          label="Household &amp; savings"
+          summary="Spouse, contributions, and your other accounts"
+          state={state}
+          onToggle={toggleSection}
+        />
+        {state.open.household && (
           <section class="section">
             <div class="subheading">Spouse</div>
             <Checkbox
@@ -275,37 +317,21 @@ export function App(): JSX.Element {
               </div>
             )}
 
-            <div class="subheading">Pensions</div>
-            <PensionFields
-              label="Your pension"
-              startAgeMin={state.primary.age}
-              person={state.primary}
-              onChange={(patch) => update({ primary: { ...state.primary, ...patch } })}
-            />
-            {state.hasSpouse && (
-              <PensionFields
-                label="Spouse's pension"
-                startAgeMin={state.spouse.age}
-                person={state.spouse}
-                onChange={(patch) => update({ spouse: { ...state.spouse, ...patch } })}
-              />
-            )}
-
             <div class="subheading">Household accounts</div>
             <p class="subheading-note">
-              These are combined totals — yours and your spouse's added together, not separate
-              per-person figures.
+              Combined totals — yours and your spouse's added together, not separate per-person
+              figures.
             </p>
             <div class="field-grid">
-              <NumberField label="Household 401(k)/IRA contribution" value={state.accounts.pretax.contribution} step={500} prefix="$"
+              <NumberField label="401(k)/IRA contribution" value={state.accounts.pretax.contribution} step={500} prefix="$"
                 hint="Everyone's contributions plus any employer match, per year"
                 onChange={(n) => updateAccount('pretax', { contribution: n })} />
-              <NumberField label="Household Roth balance" value={state.accounts.roth.balance} step={1000} prefix="$"
+              <NumberField label="Roth balance" value={state.accounts.roth.balance} step={1000} prefix="$"
                 info={ACCOUNT_INFO.roth}
                 onChange={(n) => updateAccount('roth', { enabled: true, balance: n })} />
             </div>
             <div class="field-grid">
-              <NumberField label="Household brokerage/savings balance" value={state.accounts.taxable.balance} step={1000} prefix="$"
+              <NumberField label="Brokerage/savings balance" value={state.accounts.taxable.balance} step={1000} prefix="$"
                 info={ACCOUNT_INFO.taxable}
                 onChange={(n) => {
                   const t = state.accounts.taxable
@@ -323,15 +349,22 @@ export function App(): JSX.Element {
                   info={COST_BASIS_INFO}
                   onChange={(n) => updateAccount('taxable', { costBasis: n, costBasisTouched: true })} />
               )}
+              <NumberField label="HSA balance" value={state.accounts.hsa.balance} step={500} prefix="$"
+                info={ACCOUNT_INFO.hsa}
+                onChange={(n) => updateAccount('hsa', { enabled: true, balance: n })} />
             </div>
+          </section>
+        )}
 
-            <div class="subheading">Irregular expenses</div>
-            <p class="subheading-note">
-              Things that aren't part of your steady spending — a mortgage that pays off partway
-              through retirement, health insurance before Medicare, a few years of childcare.
-            </p>
-            <ExpenseFields items={state.expenses} onAdd={addExpense} onUpdate={updateExpense} onRemove={removeExpense} />
-
+        <SectionToggle
+          name="income"
+          label="Income in retirement"
+          summary="Social Security, pensions, and any other regular income"
+          state={state}
+          onToggle={toggleSection}
+        />
+        {state.open.income && (
+          <section class="section">
             <div class="subheading">Your Social Security</div>
             <SelectField
               label="Do you know your Social Security benefit?"
@@ -343,15 +376,22 @@ export function App(): JSX.Element {
               ]}
               onChange={(ssMode) => update({ primary: { ...state.primary, ssMode } })}
             />
-            {state.primary.ssMode === 'manual' && (
-              <NumberField
-                label="Monthly benefit at full retirement age"
-                value={state.primary.ssMonthly}
-                step={50}
-                prefix="$"
-                onChange={(n) => update({ primary: { ...state.primary, ssMonthly: n } })}
-              />
-            )}
+            <div class="field-grid">
+              {state.primary.ssMode === 'manual' && (
+                <NumberField
+                  label="Monthly benefit at full retirement age"
+                  value={state.primary.ssMonthly}
+                  step={50}
+                  prefix="$"
+                  onChange={(n) => update({ primary: { ...state.primary, ssMonthly: n } })}
+                />
+              )}
+              {state.primary.ssMode !== 'none' && (
+                <NumberField label="Claim age" value={state.primary.ssClaimAge} min={62} max={70}
+                  hint="Claiming at 62 costs about 30% permanently; waiting to 70 adds about 24%"
+                  onChange={(n) => update({ primary: { ...state.primary, ssClaimAge: n } })} />
+              )}
+            </div>
             {state.hasSpouse && (
               <p class="subheading-note">
                 Your spouse's benefit is always estimated automatically from their salary — see
@@ -359,34 +399,77 @@ export function App(): JSX.Element {
               </p>
             )}
             <SocialSecurityDetail people={scenario.people} />
+
+            <div class="subheading">Pensions</div>
+            <PensionFields
+              label="Your pension"
+              startAgeMin={state.primary.age}
+              person={state.primary}
+              onChange={(patch) => update({ primary: { ...state.primary, ...patch } })}
+            />
+            {state.hasSpouse && (
+              <PensionFields
+                label="Spouse's pension"
+                startAgeMin={state.spouse.age}
+                person={state.spouse}
+                onChange={(patch) => update({ spouse: { ...state.spouse, ...patch } })}
+              />
+            )}
+
+            <div class="subheading">Other regular income</div>
+            <p class="subheading-note">
+              Rental income, part-time work in retirement, an annuity, royalties — anything
+              regular that isn't a salary or Social Security.
+            </p>
+            <IncomeFields items={state.incomes} onAdd={addIncome} onUpdate={updateIncome} onRemove={removeIncome} />
           </section>
         )}
 
-        <button
-          type="button"
-          class="section-toggle"
-          onClick={() => update({ showAdvanced: !state.showAdvanced })}
-        >
-          {state.showAdvanced ? 'Hide advanced' : 'Advanced'}
-        </button>
-
-        {state.showAdvanced && (
+        <SectionToggle
+          name="expenses"
+          label="Expenses &amp; one-time amounts"
+          summary="Costs that don't run the whole plan, and money that lands once"
+          state={state}
+          onToggle={toggleSection}
+        />
+        {state.open.expenses && (
           <section class="section">
-            <div class="subheading">Your plan</div>
+            <div class="subheading">Recurring for a while</div>
+            <p class="subheading-note">
+              Costs that run for several years but not the whole plan — a mortgage that pays off
+              partway through, health insurance before Medicare, a few years of childcare.
+            </p>
+            <ExpenseFields items={state.expenses} onAdd={addExpense} onUpdate={updateExpense} onRemove={removeExpense} />
+
+            <div class="subheading">One-time amounts</div>
+            <p class="subheading-note">
+              Money that lands in a single year, in either direction. Most are costs — a roof, a
+              car, a wedding, an entry fee for a care community. Some are windfalls, like an
+              inheritance or a home sale.
+            </p>
+            <LumpSumFields items={state.lumpSums} onAdd={addLumpSum} onUpdate={updateLumpSum} onRemove={removeLumpSum} />
+          </section>
+        )}
+
+        <SectionToggle
+          name="assumptions"
+          label="Assumptions"
+          summary="Return, taxes, and how long the plan runs"
+          state={state}
+          onToggle={toggleSection}
+        />
+        {state.open.assumptions && (
+          <section class="section">
+            <p class="subheading-note">
+              Nobody knows these numbers. The defaults are reasonable; change them to see how much
+              the answer depends on them.
+            </p>
             <div class="field-grid">
               <NumberField label="Plan to age" value={state.primary.planToAge} min={state.primary.age + 1} max={105}
-                hint="Your planning horizon — how long the money needs to last"
+                hint="How long the money needs to last"
                 onChange={(n) => update({ primary: { ...state.primary, planToAge: n } })} />
-              <NumberField label="Your Social Security claim age" value={state.primary.ssClaimAge} min={62} max={70}
-                onChange={(n) => update({ primary: { ...state.primary, ssClaimAge: n } })} />
-            </div>
-
-            <div class="subheading">Household</div>
-            <div class="field-grid">
-              <NumberField label="Household HSA balance" value={state.accounts.hsa.balance} step={500} prefix="$"
-                info={ACCOUNT_INFO.hsa}
-                onChange={(n) => updateAccount('hsa', { enabled: true, balance: n })} />
               <NumberField label="Assumed real return" value={Math.round(state.realReturn * 1000) / 10} step={0.1} suffix="%"
+                hint="Above inflation, after fees"
                 onChange={(n) => update({ realReturn: n / 100 })} />
               <NumberField label="Stock allocation" value={Math.round(state.stockAllocation * 100)} step={5} suffix="%"
                 onChange={(n) => update({ stockAllocation: n / 100 })} />
@@ -394,7 +477,7 @@ export function App(): JSX.Element {
                 onChange={(n) => update({ effectiveTaxRate: n / 100 })} />
             </div>
             <SelectField
-              label="Household spending pattern"
+              label="Spending pattern"
               value={state.spendingPath}
               options={[
                 { value: 'flat', label: 'Flat (constant real spending)' },
@@ -402,20 +485,6 @@ export function App(): JSX.Element {
               ]}
               onChange={(spendingPath) => update({ spendingPath })}
             />
-
-            <div class="subheading">Other income</div>
-            <p class="subheading-note">
-              Rental income, part-time work in retirement, an annuity, royalties — anything
-              regular that isn't a salary or Social Security.
-            </p>
-            <IncomeFields items={state.incomes} onAdd={addIncome} onUpdate={updateIncome} onRemove={removeIncome} />
-
-            <div class="subheading">One-time amounts</div>
-            <p class="subheading-note">
-              An inheritance, a home sale, a business sale — money that arrives once rather than
-              every year.
-            </p>
-            <LumpSumFields items={state.lumpSums} onAdd={addLumpSum} onUpdate={updateLumpSum} onRemove={removeLumpSum} />
           </section>
         )}
       </form>

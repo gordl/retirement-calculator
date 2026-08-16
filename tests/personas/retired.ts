@@ -18,21 +18,24 @@ export const retired: Persona[] = [
   {
     id: 'ss-only-71',
     narrative:
-      'Retired hotel housekeeper. Social Security is 95% of her income; the remaining 5% is $9k in a credit union account. Represents a very large share of American retirees and almost no retirement calculator’s design target.',
+      'Retired hotel housekeeper. Social Security is 95% of her income; the remaining 5% is $9k in a credit union account. A $4,000 transmission repair is not a rounding error to her — it is nearly half of everything she has. Represents a very large share of American retirees and almost no retirement calculator’s design target.',
     weight: 0.05,
     tier: 1,
     question: 'will-my-money-last',
     truth: scenario({
       people: [primary({ age: 71, salary: 0, retireAge: 66, ss: ssKnown(1_580, 66) })],
       accounts: [account('taxable', 9_000, { costBasis: 9_000 })],
+      lumpSums: [
+        { label: 'Car repair', amount: -4_000, atAge: 73, into: 'taxable', taxable: false },
+      ],
       spending: 24_000,
     }),
-    knows: ['primary.currentAge', 'primary.ss.monthlyAtFRA', 'spending.annual'],
+    knows: ['primary.currentAge', 'primary.ss.monthlyAtFRA', 'spending.annual', 'lumpSums'],
   },
   {
     id: 'comfortable-retiree-69',
     narrative:
-      'Retired three years ago from a utility company. Two Social Security checks, a paid-off house, and a portfolio that has so far gone up. Wants a sanity check, not a plan.',
+      'Retired three years ago from a utility company. Two Social Security checks, a paid-off house, and a portfolio that has so far gone up. Knows the roof has maybe five years left in it and the car about the same. Wants a sanity check, not a plan.',
     weight: 0.03,
     tier: 1,
     question: 'will-my-money-last',
@@ -46,6 +49,10 @@ export const retired: Persona[] = [
         account('roth', 62_000),
         account('taxable', 45_000, { costBasis: 38_000 }),
       ],
+      lumpSums: [
+        { label: 'Roof replacement', amount: -22_000, atAge: 74, into: 'taxable', taxable: false },
+        { label: 'Replace the car', amount: -32_000, atAge: 75, into: 'taxable', taxable: false },
+      ],
       spending: { annual: 72_000, path: 'retirement-smile' },
     }),
     knows: [
@@ -55,6 +62,7 @@ export const retired: Persona[] = [
       'spouse.ss.monthlyAtFRA',
       'accounts.pretax.balance',
       'spending.annual',
+      'lumpSums',
     ],
   },
   {
@@ -140,7 +148,7 @@ export const retired: Persona[] = [
   {
     id: 'ltc-need-81',
     narrative:
-      'Moved into memory care last year at $9,200 a month. The portfolio that looked ample at 70 has a very different shape at 81.',
+      'Moved into memory care last year at $9,200 a month, after a $60,000 community entry fee that had to be paid up front. The portfolio that looked ample at 70 has a very different shape at 81.',
     weight: 0.028,
     tier: 2,
     question: 'will-my-money-last',
@@ -149,6 +157,9 @@ export const retired: Persona[] = [
       accounts: [account('pretax', 430_000), account('taxable', 95_000, { costBasis: 60_000 })],
       expenses: [
         { label: 'Memory care', annual: 110_400, startAge: 81, inflationAdjusted: true },
+      ],
+      lumpSums: [
+        { label: 'Care community entry fee', amount: -60_000, atAge: 81, into: 'taxable', taxable: false },
       ],
       spending: 18_000,
     }),
@@ -161,7 +172,7 @@ export const retired: Persona[] = [
   {
     id: 'modest-retiree-75',
     narrative:
-      'Retired postal worker. A small pension, Social Security, and $120k in an IRA she is careful not to touch. Owns her home outright.',
+      'Retired postal worker. A small pension, Social Security, and $120k in an IRA she is careful not to touch. Owns her home outright, though the furnace is original and the dental work she has been postponing is not getting cheaper.',
     weight: 0.028,
     tier: 1,
     question: 'will-my-money-last',
@@ -170,6 +181,10 @@ export const retired: Persona[] = [
       accounts: [account('pretax', 120_000)],
       pensions: [
         { label: 'USPS pension', owner: 'primary', annual: 22_000, startAge: 62, cola: true },
+      ],
+      lumpSums: [
+        { label: 'Furnace and HVAC', amount: -12_000, atAge: 77, into: 'pretax', taxable: false },
+        { label: 'Major dental work', amount: -9_000, atAge: 79, into: 'pretax', taxable: false },
       ],
       spending: 41_000,
     }),
@@ -180,11 +195,14 @@ export const retired: Persona[] = [
       'accounts.pretax.balance',
       'spending.annual',
     ],
+    knownGaps: [
+      'Knows these costs are coming but not when — the model requires a specific age for each',
+    ],
   },
   {
     id: 'legacy-minded-72',
     narrative:
-      'Comfortable and deliberately underspending so the grandchildren get something. Wants to know how much he could give away now without risking himself.',
+      'Comfortable and deliberately underspending so the grandchildren get something. Already plans two gifts — a wedding and a house down payment — and wants to know how much more he could give away now without risking himself.',
     weight: 0.012,
     tier: 1,
     question: 'how-much-can-i-spend',
@@ -197,6 +215,10 @@ export const retired: Persona[] = [
         account('pretax', 780_000),
         account('roth', 190_000),
         account('taxable', 340_000, { costBasis: 150_000 }),
+      ],
+      lumpSums: [
+        { label: "Granddaughter's wedding", amount: -25_000, atAge: 74, into: 'taxable', taxable: false },
+        { label: 'Help with a down payment', amount: -40_000, atAge: 77, into: 'taxable', taxable: false },
       ],
       spending: 62_000,
       assumptions: { stockAllocation: 0.55 },
@@ -254,6 +276,9 @@ export const retired: Persona[] = [
       people: [primary({ age: 70, salary: 0, retireAge: 68, ss: ssKnown(1_720, 66) })],
       accounts: [account('pretax', 78_000)],
       expenses: [{ label: 'Rent', annual: 21_000, startAge: 70, inflationAdjusted: true }],
+      lumpSums: [
+        { label: 'Replace the car', amount: -18_000, atAge: 76, into: 'pretax', taxable: false },
+      ],
       spending: 22_000,
     }),
     knows: [

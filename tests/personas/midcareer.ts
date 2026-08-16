@@ -14,7 +14,7 @@ export const midcareer: Persona[] = [
   {
     id: 'median-household-48',
     narrative:
-      'Married, one kid left at home, combined income a bit above median. Balance is close to the national median for this age. No pension, no plan, vaguely worried.',
+      'Married, one kid left at home, combined income a bit above median. Balance is close to the national median for this age. No pension, no plan, vaguely worried. One kid still to get through college and a car that will not make it another five years.',
     weight: 0.025,
     tier: 1,
     question: 'am-i-on-track',
@@ -29,6 +29,9 @@ export const midcareer: Persona[] = [
       ],
       expenses: [
         { label: 'Mortgage', annual: 24_000, startAge: 48, endAge: 63, inflationAdjusted: false },
+      ],
+      lumpSums: [
+        { label: 'Replace the car', amount: -28_000, atAge: 52, into: 'taxable', taxable: false },
       ],
       spending: 88_000,
     }),

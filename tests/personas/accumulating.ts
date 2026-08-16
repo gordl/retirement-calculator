@@ -223,6 +223,9 @@ export const accumulating: Persona[] = [
       expenses: [
         { label: 'Mortgage', annual: 21_600, startAge: 41, endAge: 60, inflationAdjusted: false },
       ],
+      lumpSums: [
+        { label: 'Roof replacement', amount: -18_000, atAge: 47, into: 'taxable', taxable: false },
+      ],
       spending: 72_000,
     }),
     knows: [

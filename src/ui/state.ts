@@ -82,11 +82,24 @@ export interface ExpenseItemState extends DurationState {
   inflationAdjusted: boolean
 }
 
+/**
+ * One-time amounts run in both directions, and costs are by far the more
+ * common case — a roof, a car, a wedding, an entry fee. The engine encodes
+ * that as a negative `amount`, but making the user type a minus sign would
+ * be a poor way to ask. The form keeps `amount` positive and carries the
+ * direction separately; `toScenario` applies the sign.
+ */
+export type LumpSumDirection = 'cost' | 'inflow'
+
 export interface LumpSumItemState {
   id: string
   label: string
+  direction: LumpSumDirection
+  /** Always positive here. Sign is applied from `direction` on conversion. */
   amount: number
   atAge: number
+  /** Which account an inflow lands in. Ignored for costs, which are funded
+   *  across accounts in withdrawal order like any other spending. */
   into: AccountKind
   taxable: boolean
 }
@@ -107,8 +120,25 @@ export interface UIState {
   realReturn: number
   stockAllocation: number
   effectiveTaxRate: number
-  showMore: boolean
-  showAdvanced: boolean
+  /**
+   * Which collapsible sections are expanded. Named for what they contain
+   * rather than how advanced they are — grouping by "more detail" vs
+   * "advanced" had put irregular expenses and one-time amounts in different
+   * sections despite being the same kind of thing, and despite one-time
+   * amounts applying to *more* households (32%) than expenses (24%).
+   *
+   * Local UI state only; never encoded in the URL.
+   */
+  open: Record<SectionName, boolean>
+}
+
+export type SectionName = 'household' | 'income' | 'expenses' | 'assumptions'
+
+const ALL_CLOSED: Record<SectionName, boolean> = {
+  household: false,
+  income: false,
+  expenses: false,
+  assumptions: false,
 }
 
 let nextItemId = 0
@@ -143,6 +173,10 @@ export const blankExpense = (startAge: number): ExpenseItemState => ({
 export const blankLumpSum = (atAge: number): LumpSumItemState => ({
   id: newItemId(),
   label: '',
+  // Defaults to a cost: across the persona library, one-time costs outnumber
+  // windfalls roughly five to one, matching the research that puts major
+  // home repair at the top of retirees' financial shocks.
+  direction: 'cost',
   amount: 0,
   atAge,
   into: 'taxable',
@@ -212,8 +246,7 @@ export function exampleState(): UIState {
       realReturn: DEFAULT_ASSUMPTIONS.realReturn,
       stockAllocation: DEFAULT_ASSUMPTIONS.stockAllocation,
       effectiveTaxRate: DEFAULT_ASSUMPTIONS.effectiveTaxRate,
-      showMore: false,
-      showAdvanced: false,
+      open: ALL_CLOSED,
     })),
     spendingTouched: false,
     spendingPath: 'flat',
@@ -224,8 +257,7 @@ export function exampleState(): UIState {
     realReturn: DEFAULT_ASSUMPTIONS.realReturn,
     stockAllocation: DEFAULT_ASSUMPTIONS.stockAllocation,
     effectiveTaxRate: DEFAULT_ASSUMPTIONS.effectiveTaxRate,
-    showMore: false,
-    showAdvanced: false,
+    open: ALL_CLOSED,
   }
 }
 
@@ -322,13 +354,17 @@ export function toScenario(state: UIState): Scenario {
     }))
 
   const lumpSums: LumpSum[] = state.lumpSums
+    // `amount` is held positive in the form; Math.abs guards against a typed
+    // minus sign turning a cost back into an inflow.
     .filter((l) => l.label.trim() !== '' && l.amount !== 0)
     .map((l) => ({
       label: l.label.trim(),
-      amount: l.amount,
+      amount: l.direction === 'cost' ? -Math.abs(l.amount) : Math.abs(l.amount),
       atAge: l.atAge,
       into: l.into,
-      taxable: l.taxable,
+      // A cost is never taxable income — the engine ignores the flag for
+      // negative amounts, and sending `true` here would only be misleading.
+      taxable: l.direction === 'inflow' && l.taxable,
     }))
 
   return {
@@ -422,7 +458,8 @@ export function fromScenario(scenario: Scenario): UIState {
   const lumpSums: LumpSumItemState[] = scenario.lumpSums.map((l) => ({
     id: newItemId(),
     label: l.label,
-    amount: l.amount,
+    direction: l.amount < 0 ? 'cost' : 'inflow',
+    amount: Math.abs(l.amount),
     atAge: l.atAge,
     into: l.into,
     taxable: l.taxable,
@@ -442,7 +479,13 @@ export function fromScenario(scenario: Scenario): UIState {
     realReturn: scenario.assumptions.realReturn,
     stockAllocation: scenario.assumptions.stockAllocation,
     effectiveTaxRate: scenario.assumptions.effectiveTaxRate,
-    showMore: !!spouse,
-    showAdvanced: false,
+    // A decoded URL opens whichever sections actually carry data, so a
+    // shared link never hides the numbers it was sent to communicate.
+    open: {
+      household: !!spouse,
+      income: scenario.pensions.length > 0 || scenario.incomes.length > 0,
+      expenses: scenario.expenses.length > 0 || scenario.lumpSums.length > 0,
+      assumptions: false,
+    },
   }
 }

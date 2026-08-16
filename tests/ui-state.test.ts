@@ -181,16 +181,75 @@ describe('UI state conversions', () => {
       ])
     })
 
-    it('includes a fully-specified lump sum, landing in the chosen account', () => {
+    it('includes a fully-specified inflow, landing in the chosen account', () => {
       const state = exampleState()
       const lump = blankLumpSum(70)
       lump.label = 'Inheritance'
+      lump.direction = 'inflow'
       lump.amount = 250_000
       lump.into = 'roth'
       state.lumpSums = [lump]
 
       expect(toScenario(state).lumpSums).toEqual([
         { label: 'Inheritance', amount: 250_000, atAge: 70, into: 'roth', taxable: false },
+      ])
+    })
+
+    it('defaults a new one-time amount to a cost, the far more common case', () => {
+      // Across the persona library one-time costs outnumber windfalls about
+      // five to one, so the form should not make the common case the one you
+      // have to go change.
+      expect(blankLumpSum(70).direction).toBe('cost')
+    })
+
+    it('negates a cost, so the user never types a minus sign', () => {
+      const state = exampleState()
+      const lump = blankLumpSum(74)
+      lump.label = 'New roof'
+      lump.amount = 22_000 // entered positive
+      state.lumpSums = [lump]
+
+      expect(toScenario(state).lumpSums[0]!.amount).toBe(-22_000)
+    })
+
+    it('ignores a stray minus sign rather than flipping a cost into a windfall', () => {
+      const state = exampleState()
+      const lump = blankLumpSum(74)
+      lump.label = 'New roof'
+      lump.amount = -22_000
+      state.lumpSums = [lump]
+
+      expect(toScenario(state).lumpSums[0]!.amount).toBe(-22_000)
+    })
+
+    it('never marks a cost as taxable income', () => {
+      // A cost is not a deduction; sending taxable:true would be misleading
+      // even though the engine ignores the flag for negative amounts.
+      const state = exampleState()
+      const lump = blankLumpSum(74)
+      lump.label = 'Care community entry fee'
+      lump.amount = 60_000
+      lump.taxable = true
+      state.lumpSums = [lump]
+
+      expect(toScenario(state).lumpSums[0]!.taxable).toBe(false)
+    })
+
+    it('round-trips direction through fromScenario, recovering it from the sign', () => {
+      const state = exampleState()
+      const cost = blankLumpSum(74)
+      cost.label = 'New roof'
+      cost.amount = 22_000
+      const windfall = blankLumpSum(62)
+      windfall.label = 'Inheritance'
+      windfall.direction = 'inflow'
+      windfall.amount = 65_000
+      state.lumpSums = [cost, windfall]
+
+      const rebuilt = fromScenario(toScenario(state))
+      expect(rebuilt.lumpSums.map((l) => [l.direction, l.amount])).toEqual([
+        ['cost', 22_000],
+        ['inflow', 65_000],
       ])
     })
 

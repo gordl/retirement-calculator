@@ -16,7 +16,7 @@ export const preretirement: Persona[] = [
   {
     id: 'median-preretiree-58',
     narrative:
-      'Married, kids grown, house nearly paid off. Their balance is right at the national median for the age, which is far less than the internet says it should be.',
+      'Married, kids grown, house nearly paid off. Their balance is right at the national median for the age, which is far less than the internet says it should be. Expects a modest inheritance from an aging mother — the typical kind, tens of thousands rather than the life-changing sum people imagine.',
     weight: 0.025,
     tier: 1,
     question: 'can-i-retire-at',
@@ -33,6 +33,12 @@ export const preretirement: Persona[] = [
       expenses: [
         { label: 'Mortgage', annual: 18_000, startAge: 58, endAge: 63, inflationAdjusted: false },
       ],
+      lumpSums: [
+        // Close to the SCF median inheritance for recipients (~$69k), received
+        // near the median recipient age of 58 — the ordinary case, not the
+        // windfall that retirement software usually models.
+        { label: 'Inheritance', amount: 65_000, atAge: 62, into: 'taxable', taxable: false },
+      ],
       spending: 76_000,
     }),
     knows: [
@@ -43,6 +49,9 @@ export const preretirement: Persona[] = [
       'spouse.salary',
       'accounts.pretax.balance',
       'expenses',
+    ],
+    knownGaps: [
+      'Inheritance timing is genuinely unknowable — entered as a specific age because the model requires one',
     ],
   },
   {
@@ -62,6 +71,10 @@ export const preretirement: Persona[] = [
         account('roth', 185_000),
         account('taxable', 290_000, { costBasis: 195_000 }),
         account('hsa', 41_000),
+      ],
+      lumpSums: [
+        { label: 'Buy the RV', amount: -85_000, atAge: 63, into: 'taxable', taxable: false },
+        { label: "Son's wedding", amount: -35_000, atAge: 65, into: 'taxable', taxable: false },
       ],
       spending: { annual: 145_000, path: 'retirement-smile' },
     }),
