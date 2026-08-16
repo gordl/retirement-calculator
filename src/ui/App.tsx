@@ -5,13 +5,20 @@ import { LognormalMC, HistoricalCohorts } from '../engine/returns'
 import { estimatedBenefit } from '../engine/socialsecurity'
 import { decode, encode } from '../url/codec'
 import {
+  blankExpense,
+  blankIncome,
+  blankLumpSum,
   exampleState,
   fromScenario,
   recomputeSpendingEstimate,
   toScenario,
+  type ExpenseItemState,
+  type IncomeItemState,
+  type LumpSumItemState,
   type UIState,
 } from './state'
 import { Checkbox, NumberField, SelectField } from './components/Field'
+import { ExpenseFields, IncomeFields, LumpSumFields } from './components/ListFields'
 import { ResultPanel } from './components/ResultPanel'
 import { formatDollars } from './format'
 
@@ -178,6 +185,21 @@ export function App(): JSX.Element {
   const updateAccount = (kind: keyof UIState['accounts'], patch: Partial<UIState['accounts'][typeof kind]>) =>
     update({ accounts: { ...state.accounts, [kind]: { ...state.accounts[kind], ...patch } } })
 
+  const addIncome = () => update({ incomes: [...state.incomes, blankIncome(state.primary.retireAge)] })
+  const updateIncome = (id: string, patch: Partial<IncomeItemState>) =>
+    update({ incomes: state.incomes.map((i) => (i.id === id ? { ...i, ...patch } : i)) })
+  const removeIncome = (id: string) => update({ incomes: state.incomes.filter((i) => i.id !== id) })
+
+  const addExpense = () => update({ expenses: [...state.expenses, blankExpense(state.primary.retireAge)] })
+  const updateExpense = (id: string, patch: Partial<ExpenseItemState>) =>
+    update({ expenses: state.expenses.map((e) => (e.id === id ? { ...e, ...patch } : e)) })
+  const removeExpense = (id: string) => update({ expenses: state.expenses.filter((e) => e.id !== id) })
+
+  const addLumpSum = () => update({ lumpSums: [...state.lumpSums, blankLumpSum(state.primary.retireAge)] })
+  const updateLumpSum = (id: string, patch: Partial<LumpSumItemState>) =>
+    update({ lumpSums: state.lumpSums.map((l) => (l.id === id ? { ...l, ...patch } : l)) })
+  const removeLumpSum = (id: string) => update({ lumpSums: state.lumpSums.filter((l) => l.id !== id) })
+
   return (
     <main class="app">
       <header class="app-header">
@@ -297,6 +319,13 @@ export function App(): JSX.Element {
               )}
             </div>
 
+            <div class="subheading">Irregular expenses</div>
+            <p class="subheading-note">
+              Things that aren't part of your steady spending — a mortgage that pays off partway
+              through retirement, health insurance before Medicare, a few years of childcare.
+            </p>
+            <ExpenseFields items={state.expenses} onAdd={addExpense} onUpdate={updateExpense} onRemove={removeExpense} />
+
             <div class="subheading">Your Social Security</div>
             <SelectField
               label="Do you know your Social Security benefit?"
@@ -367,6 +396,20 @@ export function App(): JSX.Element {
               ]}
               onChange={(spendingPath) => update({ spendingPath })}
             />
+
+            <div class="subheading">Other income</div>
+            <p class="subheading-note">
+              Rental income, part-time work in retirement, an annuity, royalties — anything
+              regular that isn't a salary or Social Security.
+            </p>
+            <IncomeFields items={state.incomes} onAdd={addIncome} onUpdate={updateIncome} onRemove={removeIncome} />
+
+            <div class="subheading">One-time amounts</div>
+            <p class="subheading-note">
+              An inheritance, a home sale, a business sale — money that arrives once rather than
+              every year.
+            </p>
+            <LumpSumFields items={state.lumpSums} onAdd={addLumpSum} onUpdate={updateLumpSum} onRemove={removeLumpSum} />
           </section>
         )}
       </form>

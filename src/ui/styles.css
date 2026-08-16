@@ -384,6 +384,67 @@ body {
   margin: -4px 0 12px;
 }
 
+.repeat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.repeat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+}
+
+.repeat-item-header {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.repeat-item-header .field {
+  flex: 1;
+}
+
+.repeat-remove {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.repeat-remove:hover {
+  background: var(--bad-bg);
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.repeat-add {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--accent);
+  font-size: 0.85rem;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+
+.repeat-add:hover {
+  background: var(--card-bg);
+}
+
 .section-toggle {
   display: block;
   width: 100%;

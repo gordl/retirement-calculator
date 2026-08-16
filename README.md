@@ -37,7 +37,7 @@ One year-by-year ledger, with pluggable models layered on top:
 - **Taxes** — an effective-rate approximation in v1, behind an interface that a full bracket model drops into later.
 - **Social Security** — estimated from salary and work history via the AIME/bend-point formula, so you don't have to go look your benefit up. Override it if you know the real number.
 
-Not modeled yet: state tax, IRMAA, Roth conversions, long-term care, annuity products. Each is additive behind an existing interface.
+Not modeled yet: state tax, IRMAA, Roth conversions, long-term care, annuity products. Each is additive behind an existing interface. See [TODO.md](TODO.md) for the full list of known gaps, in priority order, with where each would plug into the architecture.
 
 ## Development
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { exampleState, fromScenario, toScenario } from '../src/ui/state'
+import { blankExpense, blankIncome, blankLumpSum, exampleState, fromScenario, toScenario } from '../src/ui/state'
 import { encode, decode } from '../src/url/codec'
 import { run } from '../src/engine/run'
 
@@ -114,6 +114,146 @@ describe('UI state conversions', () => {
       const scenario = toScenario(state)
       const decoded = decode(encode(scenario))
       expect(decoded.pensions).toEqual(scenario.pensions)
+    })
+  })
+
+  describe('irregular incomes, expenses, and one-time amounts', () => {
+    // These three were the actual bug this test block exists to guard
+    // against: toScenario() silently hardcoded all three to [], so nothing
+    // typed into a (nonexistent) form for them could ever reach the engine
+    // or the URL. There was no field at all, for any of the three, until now.
+
+    it('starts with none of the three in the example state', () => {
+      const scenario = toScenario(exampleState())
+      expect(scenario.incomes).toEqual([])
+      expect(scenario.expenses).toEqual([])
+      expect(scenario.lumpSums).toEqual([])
+    })
+
+    it('drops a blank draft row (no label, no amount) from all three', () => {
+      const state = exampleState()
+      state.incomes = [blankIncome(67)]
+      state.expenses = [blankExpense(67)]
+      state.lumpSums = [blankLumpSum(67)]
+
+      const scenario = toScenario(state)
+      expect(scenario.incomes).toEqual([])
+      expect(scenario.expenses).toEqual([])
+      expect(scenario.lumpSums).toEqual([])
+    })
+
+    it('includes a fully-specified income stream, with an end age omitted unless set', () => {
+      const state = exampleState()
+      const income = blankIncome(65)
+      income.label = 'Rental income'
+      income.annual = 18_000
+      income.taxable = true
+      state.incomes = [income]
+
+      let scenario = toScenario(state)
+      expect(scenario.incomes).toEqual([
+        { label: 'Rental income', annual: 18_000, startAge: 65, inflationAdjusted: true, taxable: true },
+      ])
+
+      income.hasEndAge = true
+      income.endAge = 80
+      scenario = toScenario(state)
+      expect(scenario.incomes[0]!.endAge).toBe(80)
+    })
+
+    it('includes a fully-specified expense', () => {
+      const state = exampleState()
+      const expense = blankExpense(65)
+      expense.label = 'Health insurance premiums'
+      expense.annual = 14_000
+      expense.hasEndAge = true
+      expense.endAge = 65
+      state.expenses = [expense]
+
+      expect(toScenario(state).expenses).toEqual([
+        {
+          label: 'Health insurance premiums',
+          annual: 14_000,
+          startAge: 65,
+          endAge: 65,
+          inflationAdjusted: true,
+        },
+      ])
+    })
+
+    it('includes a fully-specified lump sum, landing in the chosen account', () => {
+      const state = exampleState()
+      const lump = blankLumpSum(70)
+      lump.label = 'Inheritance'
+      lump.amount = 250_000
+      lump.into = 'roth'
+      state.lumpSums = [lump]
+
+      expect(toScenario(state).lumpSums).toEqual([
+        { label: 'Inheritance', amount: 250_000, atAge: 70, into: 'roth', taxable: false },
+      ])
+    })
+
+    it('supports multiple independent items of each kind', () => {
+      const state = exampleState()
+      state.incomes = [blankIncome(65), blankIncome(70)]
+      state.incomes[0]!.label = 'Part-time work'
+      state.incomes[0]!.annual = 12_000
+      state.incomes[1]!.label = 'Annuity'
+      state.incomes[1]!.annual = 9_000
+
+      const scenario = toScenario(state)
+      expect(scenario.incomes).toHaveLength(2)
+      expect(scenario.incomes.map((i) => i.label)).toEqual(['Part-time work', 'Annuity'])
+    })
+
+    it('round-trips all three through fromScenario(toScenario(s))', () => {
+      const state = exampleState()
+
+      const income = blankIncome(65)
+      income.label = 'Rental income'
+      income.annual = 18_000
+      income.hasEndAge = true
+      income.endAge = 85
+      state.incomes = [income]
+
+      const expense = blankExpense(60)
+      expense.label = 'Mortgage'
+      expense.annual = 24_000
+      expense.hasEndAge = true
+      expense.endAge = 72
+      expense.inflationAdjusted = false
+      state.expenses = [expense]
+
+      const lump = blankLumpSum(68)
+      lump.label = 'Home sale'
+      lump.amount = 400_000
+      lump.into = 'taxable'
+      lump.taxable = false
+      state.lumpSums = [lump]
+
+      const original = toScenario(state)
+      const rebuilt = toScenario(fromScenario(original))
+      expect(rebuilt).toEqual(original)
+    })
+
+    it('round-trips all three through the URL codec', () => {
+      const state = exampleState()
+      state.incomes = [blankIncome(65)]
+      state.incomes[0]!.label = 'Royalties'
+      state.incomes[0]!.annual = 5_000
+      state.expenses = [blankExpense(70)]
+      state.expenses[0]!.label = 'Long-term care'
+      state.expenses[0]!.annual = 60_000
+      state.lumpSums = [blankLumpSum(75)]
+      state.lumpSums[0]!.label = 'Business sale'
+      state.lumpSums[0]!.amount = 600_000
+
+      const scenario = toScenario(state)
+      const decoded = decode(encode(scenario))
+      expect(decoded.incomes).toEqual(scenario.incomes)
+      expect(decoded.expenses).toEqual(scenario.expenses)
+      expect(decoded.lumpSums).toEqual(scenario.lumpSums)
     })
   })
 })

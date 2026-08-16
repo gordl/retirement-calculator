@@ -73,6 +73,30 @@ export function NumberField({
   )
 }
 
+interface TextFieldProps {
+  label: string
+  value: string
+  onChange: (s: string) => void
+  placeholder?: string
+}
+
+export function TextField({ label, value, onChange, placeholder }: TextFieldProps): JSX.Element {
+  return (
+    <label class="field">
+      <span class="field-label">{label}</span>
+      <span class="field-input-wrap">
+        <input
+          type="text"
+          class="field-input"
+          value={value}
+          placeholder={placeholder}
+          onInput={(e) => onChange((e.target as HTMLInputElement).value)}
+        />
+      </span>
+    </label>
+  )
+}
+
 interface SelectFieldProps<T extends string> {
   label: string
   value: T

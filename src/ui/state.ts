@@ -1,4 +1,13 @@
-import type { AccountKind, Pension, Scenario, SocialSecurity, SpendingPath } from '../engine/types'
+import type {
+  AccountKind,
+  Expense,
+  IncomeStream,
+  LumpSum,
+  Pension,
+  Scenario,
+  SocialSecurity,
+  SpendingPath,
+} from '../engine/types'
 import { estimateSpending } from '../engine/estimates'
 import {
   DEFAULT_ASSUMPTIONS,
@@ -44,6 +53,44 @@ export interface AccountState {
 
 export type AccountsState = Record<AccountKind, AccountState>
 
+/**
+ * Shared shape for the "when does this end" question on incomes and
+ * expenses. `hasEndAge` gates whether `endAge` is sent to the engine at all
+ * — keeping it a plain number rather than `number | null` means NumberField
+ * never has to handle a null value, at the cost of carrying a stale number
+ * around while the checkbox is off. `toScenario` is what actually decides
+ * whether it counts.
+ */
+interface DurationState {
+  startAge: number
+  hasEndAge: boolean
+  endAge: number
+}
+
+export interface IncomeItemState extends DurationState {
+  id: string
+  label: string
+  annual: number
+  inflationAdjusted: boolean
+  taxable: boolean
+}
+
+export interface ExpenseItemState extends DurationState {
+  id: string
+  label: string
+  annual: number
+  inflationAdjusted: boolean
+}
+
+export interface LumpSumItemState {
+  id: string
+  label: string
+  amount: number
+  atAge: number
+  into: AccountKind
+  taxable: boolean
+}
+
 export interface UIState {
   primary: PersonState
   hasSpouse: boolean
@@ -54,12 +101,53 @@ export interface UIState {
   spendingTouched: boolean
   spendingPath: SpendingPath
   accounts: AccountsState
+  incomes: IncomeItemState[]
+  expenses: ExpenseItemState[]
+  lumpSums: LumpSumItemState[]
   realReturn: number
   stockAllocation: number
   effectiveTaxRate: number
   showMore: boolean
   showAdvanced: boolean
 }
+
+let nextItemId = 0
+/** IDs exist only for Preact list keys and never leave this module — the
+ *  URL encodes the underlying data, not these. A plain counter is enough. */
+export function newItemId(): string {
+  nextItemId += 1
+  return `item-${nextItemId}`
+}
+
+export const blankIncome = (startAge: number): IncomeItemState => ({
+  id: newItemId(),
+  label: '',
+  annual: 0,
+  startAge,
+  hasEndAge: false,
+  endAge: startAge + 10,
+  inflationAdjusted: true,
+  taxable: true,
+})
+
+export const blankExpense = (startAge: number): ExpenseItemState => ({
+  id: newItemId(),
+  label: '',
+  annual: 0,
+  startAge,
+  hasEndAge: false,
+  endAge: startAge + 10,
+  inflationAdjusted: true,
+})
+
+export const blankLumpSum = (atAge: number): LumpSumItemState => ({
+  id: newItemId(),
+  label: '',
+  amount: 0,
+  atAge,
+  into: 'taxable',
+  taxable: false,
+})
 
 const blankAccount = (): AccountState => ({
   enabled: false,
@@ -118,6 +206,9 @@ export function exampleState(): UIState {
       spendingTouched: false,
       spendingPath: 'flat',
       accounts,
+      incomes: [],
+      expenses: [],
+      lumpSums: [],
       realReturn: DEFAULT_ASSUMPTIONS.realReturn,
       stockAllocation: DEFAULT_ASSUMPTIONS.stockAllocation,
       effectiveTaxRate: DEFAULT_ASSUMPTIONS.effectiveTaxRate,
@@ -127,6 +218,9 @@ export function exampleState(): UIState {
     spendingTouched: false,
     spendingPath: 'flat',
     accounts,
+    incomes: [],
+    expenses: [],
+    lumpSums: [],
     realReturn: DEFAULT_ASSUMPTIONS.realReturn,
     stockAllocation: DEFAULT_ASSUMPTIONS.stockAllocation,
     effectiveTaxRate: DEFAULT_ASSUMPTIONS.effectiveTaxRate,
@@ -206,13 +300,44 @@ export function toScenario(state: UIState): Scenario {
     })
   }
 
+  const incomes: IncomeStream[] = state.incomes
+    .filter((i) => i.label.trim() !== '' && i.annual > 0)
+    .map((i) => ({
+      label: i.label.trim(),
+      annual: i.annual,
+      startAge: i.startAge,
+      inflationAdjusted: i.inflationAdjusted,
+      taxable: i.taxable,
+      ...(i.hasEndAge ? { endAge: i.endAge } : {}),
+    }))
+
+  const expenses: Expense[] = state.expenses
+    .filter((e) => e.label.trim() !== '' && e.annual > 0)
+    .map((e) => ({
+      label: e.label.trim(),
+      annual: e.annual,
+      startAge: e.startAge,
+      inflationAdjusted: e.inflationAdjusted,
+      ...(e.hasEndAge ? { endAge: e.endAge } : {}),
+    }))
+
+  const lumpSums: LumpSum[] = state.lumpSums
+    .filter((l) => l.label.trim() !== '' && l.amount !== 0)
+    .map((l) => ({
+      label: l.label.trim(),
+      amount: l.amount,
+      atAge: l.atAge,
+      into: l.into,
+      taxable: l.taxable,
+    }))
+
   return {
     people,
     accounts,
     pensions,
-    incomes: [],
-    expenses: [],
-    lumpSums: [],
+    incomes,
+    expenses,
+    lumpSums,
     spending: { annual: state.spendingAnnual, path: state.spendingPath },
     assumptions: {
       inflation: DEFAULT_ASSUMPTIONS.inflation,
@@ -273,6 +398,36 @@ export function fromScenario(scenario: Scenario): UIState {
     }
   }
 
+  const incomes: IncomeItemState[] = scenario.incomes.map((i) => ({
+    id: newItemId(),
+    label: i.label,
+    annual: i.annual,
+    startAge: i.startAge,
+    hasEndAge: i.endAge !== undefined,
+    endAge: i.endAge ?? i.startAge + 10,
+    inflationAdjusted: i.inflationAdjusted,
+    taxable: i.taxable,
+  }))
+
+  const expenses: ExpenseItemState[] = scenario.expenses.map((e) => ({
+    id: newItemId(),
+    label: e.label,
+    annual: e.annual,
+    startAge: e.startAge,
+    hasEndAge: e.endAge !== undefined,
+    endAge: e.endAge ?? e.startAge + 10,
+    inflationAdjusted: e.inflationAdjusted,
+  }))
+
+  const lumpSums: LumpSumItemState[] = scenario.lumpSums.map((l) => ({
+    id: newItemId(),
+    label: l.label,
+    amount: l.amount,
+    atAge: l.atAge,
+    into: l.into,
+    taxable: l.taxable,
+  }))
+
   return {
     primary: fromPerson(primary, primaryPension),
     hasSpouse: !!spouse,
@@ -281,6 +436,9 @@ export function fromScenario(scenario: Scenario): UIState {
     spendingTouched: true, // a decoded URL always carries an explicit value
     spendingPath: scenario.spending.path,
     accounts,
+    incomes,
+    expenses,
+    lumpSums,
     realReturn: scenario.assumptions.realReturn,
     stockAllocation: scenario.assumptions.stockAllocation,
     effectiveTaxRate: scenario.assumptions.effectiveTaxRate,
