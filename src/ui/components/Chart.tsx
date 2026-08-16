@@ -16,17 +16,61 @@ interface Marker {
   variant: 'retire' | 'ss' | 'depleted'
 }
 
-/** Places labels so two markers landing close together don't overlap: the
- *  later one in the array drops to a lower text band. */
-function layoutLabels(markers: Marker[], minGapIndex: number): Map<number, 0 | 1> {
-  const bands = new Map<number, 0 | 1>()
-  const placed: number[] = []
-  for (const m of markers) {
-    const collides = placed.some((i) => Math.abs(i - m.index) < minGapIndex)
-    bands.set(m.index, collides ? 1 : 0)
-    placed.push(m.index)
+export type TextAnchor = 'start' | 'middle' | 'end'
+
+export interface LabelBox {
+  key: string
+  /** Pixel x position the label is anchored to. */
+  x: number
+  anchor: TextAnchor
+  text: string
+}
+
+/** Rough width of one character in the 9px, weight-600 chart-marker-label
+ *  font. There's no DOM to measure against at layout time (this same
+ *  function is used in tests, with no browser involved), so this is an
+ *  estimate — `LABEL_PADDING_PX` exists to absorb the error rather than
+ *  relying on the estimate being exact. */
+const CHAR_WIDTH_PX = 5.5
+const LABEL_PADDING_PX = 8
+
+function textSpan(box: LabelBox): [number, number] {
+  const width = box.text.length * CHAR_WIDTH_PX
+  if (box.anchor === 'start') return [box.x, box.x + width]
+  if (box.anchor === 'end') return [box.x - width, box.x]
+  return [box.x - width / 2, box.x + width / 2]
+}
+
+/**
+ * Assigns each label to the lowest vertical band where it doesn't overlap
+ * (horizontally, with `LABEL_PADDING_PX` of breathing room) any label
+ * already placed on that band. Unbounded band count — capping it at two
+ * bands is what let three markers landing close together overlap before:
+ * the third one collided with both existing bands and got dumped onto
+ * whichever one it checked last, on top of whatever was already there.
+ * With this chart's marker count (at most three: retire, Social Security,
+ * depletion) this never grows past three bands in practice, but nothing
+ * here assumes that.
+ */
+export function assignLabelBands(boxes: LabelBox[]): Map<string, number> {
+  const bandSpans: [number, number][][] = []
+  const result = new Map<string, number>()
+
+  for (const box of boxes) {
+    const [left, right] = textSpan(box)
+    let band = 0
+    for (; band < bandSpans.length; band++) {
+      const overlaps = bandSpans[band]!.some(
+        ([l, r]) => left < r + LABEL_PADDING_PX && right > l - LABEL_PADDING_PX,
+      )
+      if (!overlaps) break
+    }
+    if (band === bandSpans.length) bandSpans.push([])
+    bandSpans[band]!.push([left, right])
+    result.set(box.key, band)
   }
-  return bands
+
+  return result
 }
 
 /** SVG path for the ribbon between two value series: forward along the
@@ -47,7 +91,7 @@ function bandPath(lower: number[], upper: number[], x: (i: number) => number, y:
 export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Element {
   const width = 640
   const height = 260
-  const padding = { top: 34, right: 12, bottom: 24, left: 56 }
+  const padding = { top: 46, right: 12, bottom: 24, left: 56 }
 
   const totals = ledger.map((y) => ACCOUNT_KINDS.reduce((s, k) => s + y.closing[k], 0))
   const n = ledger.length
@@ -81,7 +125,23 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
     markers.push({ index: depletedIndex, label: 'Money runs out', variant: 'depleted' })
   }
 
-  const bands = layoutLabels(markers, Math.max(2, Math.round(n * 0.12)))
+  const markerBoxes: (LabelBox & { index: number })[] = markers.map((m) => {
+    const mx = x(m.index)
+    // Clamp the text anchor near the chart edges so labels don't clip.
+    const nearLeft = mx < padding.left + 60
+    const nearRight = mx > width - padding.right - 60
+    const anchor: TextAnchor = nearLeft ? 'start' : nearRight ? 'end' : 'middle'
+    return {
+      key: `${m.variant}-${m.index}`,
+      index: m.index,
+      x: mx,
+      anchor,
+      text: `${m.label} (age ${startAge + m.index})`,
+    }
+  })
+
+  const labelBands = assignLabelBands(markerBoxes)
+  const lineHeight = 11
 
   const label = bandValues
     ? 'Projected portfolio balance over time, with a percentile spread of outcomes, and retirement, Social Security, and depletion marked'
@@ -132,17 +192,14 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
       <path d={linePath} class="chart-line" />
 
       {markers.map((m) => {
-        const markerBand = bands.get(m.index) ?? 0
-        const labelY = padding.top - 22 + markerBand * 12
-        // Clamp the text anchor near the chart edges so labels don't clip.
-        const nearLeft = x(m.index) < padding.left + 60
-        const nearRight = x(m.index) > width - padding.right - 60
-        const anchor = nearLeft ? 'start' : nearRight ? 'end' : 'middle'
+        const box = markerBoxes.find((b) => b.index === m.index && b.key === `${m.variant}-${m.index}`)!
+        const markerBand = labelBands.get(box.key) ?? 0
+        const labelY = 10 + markerBand * lineHeight
         return (
-          <g key={`${m.variant}-${m.index}`} class={`chart-marker chart-marker--${m.variant}`}>
+          <g key={box.key} class={`chart-marker chart-marker--${m.variant}`}>
             <line x1={x(m.index)} x2={x(m.index)} y1={padding.top} y2={height - padding.bottom} class="chart-marker-line" />
-            <text x={x(m.index)} y={labelY} class="chart-marker-label" text-anchor={anchor}>
-              {m.label} (age {startAge + m.index})
+            <text x={box.x} y={labelY} class="chart-marker-label" text-anchor={box.anchor}>
+              {box.text}
             </text>
           </g>
         )
