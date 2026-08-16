@@ -1,5 +1,23 @@
 import type { JSX } from 'preact'
 
+/**
+ * A small "(i)" icon that reveals an explanatory bubble on hover or keyboard
+ * focus. Pure CSS — no open/close state to manage, and it works the same way
+ * for a mouse user and someone tabbing through the form.
+ */
+export function InfoTip({ text }: { text: string }): JSX.Element {
+  return (
+    <span class="infotip" tabIndex={0}>
+      <span class="infotip-icon" aria-hidden="true">
+        i
+      </span>
+      <span class="infotip-bubble" role="tooltip">
+        {text}
+      </span>
+    </span>
+  )
+}
+
 interface NumberFieldProps {
   label: string
   value: number
@@ -10,6 +28,8 @@ interface NumberFieldProps {
   prefix?: string
   suffix?: string
   hint?: string
+  /** Explanatory text shown in an InfoTip next to the label. */
+  info?: string
 }
 
 /** A labeled numeric input. Empty/invalid input is treated as 0 rather than
@@ -24,10 +44,14 @@ export function NumberField({
   prefix,
   suffix,
   hint,
+  info,
 }: NumberFieldProps): JSX.Element {
   return (
     <label class="field">
-      <span class="field-label">{label}</span>
+      <span class="field-label">
+        {label}
+        {info && <InfoTip text={info} />}
+      </span>
       <span class="field-input-wrap">
         {prefix && <span class="field-affix">{prefix}</span>}
         <input

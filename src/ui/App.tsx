@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import { run } from '../engine/run'
 import { LognormalMC, HistoricalCohorts } from '../engine/returns'
+import { estimatedBenefit } from '../engine/socialsecurity'
 import { decode, encode } from '../url/codec'
 import {
   exampleState,
@@ -12,6 +13,70 @@ import {
 } from './state'
 import { Checkbox, NumberField, SelectField } from './components/Field'
 import { ResultPanel } from './components/ResultPanel'
+import { formatDollars } from './format'
+
+const ACCOUNT_INFO = {
+  pretax:
+    'A traditional 401(k), 403(b), or IRA. Contributions were never taxed going in — the full withdrawal, contributions plus all growth, is taxed as ordinary income when you take it out.',
+  roth: 'Contributions were already taxed before they went in. Growth is never taxed again, as long as withdrawals are qualified.',
+  taxable:
+    'An ordinary brokerage or savings account. Contributions were already taxed as income. Only the investment gain is taxed later, when you sell — see "cost basis" below.',
+  hsa: 'A health savings account. Contributions are tax-free through payroll, and withdrawals are tax-free too, as long as they go toward medical expenses.',
+} as const
+
+const COST_BASIS_INFO =
+  'What you originally put in, before any growth. Only the difference between your current balance and this figure is treated as a taxable gain when you withdraw. Leave it equal to your balance if you\'re not sure — that assumes no gain yet, which slightly understates future tax.'
+
+/**
+ * Shows the actual result of the Social Security calculation, not just the
+ * inputs that drove it — the estimate is otherwise invisible to the user.
+ * `null` means that person opted out (mode "none"), which is deliberately
+ * rendered as nothing rather than "$0/mo" so it doesn't read as a bug.
+ */
+function SocialSecurityDetail({ people }: { people: import('../engine/types').Person[] }): JSX.Element | null {
+  const rows = people
+    .map((person) => ({ person, benefit: estimatedBenefit(person) }))
+    .filter((r): r is { person: (typeof people)[number]; benefit: NonNullable<typeof r.benefit> } =>
+      r.benefit !== null,
+    )
+
+  if (rows.length === 0) return null
+
+  return (
+    <div class="ss-detail">
+      {rows.map(({ person, benefit }) => (
+        <div class="ss-detail-row" key={person.id}>
+          <span class="ss-detail-who">{person.id === 'spouse' ? 'Spouse' : 'You'}</span>
+          <span class="ss-detail-numbers">
+            {benefit.source === 'estimated' ? (
+              <>
+                Estimated at <strong>{formatDollars(benefit.monthlyAtFRA)}/mo</strong> at full
+                retirement age
+                {benefit.claimAge !== 67 && (
+                  <>
+                    {' '}
+                    → <strong>{formatDollars(benefit.monthlyAtClaimAge)}/mo</strong> claiming at
+                    age {benefit.claimAge}
+                  </>
+                )}
+              </>
+            ) : (
+              <>
+                <strong>{formatDollars(benefit.monthlyAtClaimAge)}/mo</strong> claiming at age{' '}
+                {benefit.claimAge}
+              </>
+            )}
+          </span>
+        </div>
+      ))}
+      <span class="field-hint">
+        {rows.some((r) => r.benefit.source === 'estimated')
+          ? 'Estimated from salary and years worked using the SSA benefit formula — enter your real amount above if you know it.'
+          : null}
+      </span>
+    </div>
+  )
+}
 
 /**
  * Field order here is not a design guess — it follows tests/harness/sensitivity.ts
@@ -90,6 +155,7 @@ export function App(): JSX.Element {
               onChange={(n) => update({ primary: { ...state.primary, retireAge: n } })} />
             <NumberField label="401(k)/IRA balance" value={state.accounts.pretax.balance} step={1000} prefix="$"
               hint="Traditional 401(k), 403(b), or IRA"
+              info={ACCOUNT_INFO.pretax}
               onChange={(n) => updateAccount('pretax', { enabled: true, balance: n })} />
           </div>
           <div class="field-grid">
@@ -135,9 +201,28 @@ export function App(): JSX.Element {
                 hint="Your contribution plus any employer match, per year"
                 onChange={(n) => updateAccount('pretax', { contribution: n })} />
               <NumberField label="Roth IRA/401(k) balance" value={state.accounts.roth.balance} step={1000} prefix="$"
+                info={ACCOUNT_INFO.roth}
                 onChange={(n) => updateAccount('roth', { enabled: true, balance: n })} />
+            </div>
+            <div class="field-grid">
               <NumberField label="Brokerage/savings balance" value={state.accounts.taxable.balance} step={1000} prefix="$"
-                onChange={(n) => updateAccount('taxable', { enabled: true, balance: n })} />
+                info={ACCOUNT_INFO.taxable}
+                onChange={(n) => {
+                  const t = state.accounts.taxable
+                  updateAccount('taxable', {
+                    enabled: true,
+                    balance: n,
+                    // Track the balance until the user deliberately sets a
+                    // different cost basis — see COST_BASIS_INFO.
+                    ...(t.costBasisTouched ? {} : { costBasis: n }),
+                  })
+                }} />
+              {state.accounts.taxable.balance > 0 && (
+                <NumberField label="Cost basis" value={state.accounts.taxable.costBasis} step={1000} prefix="$"
+                  hint="What you originally put in — only the gain above this is taxed"
+                  info={COST_BASIS_INFO}
+                  onChange={(n) => updateAccount('taxable', { costBasis: n, costBasisTouched: true })} />
+              )}
             </div>
 
             <SelectField
@@ -159,6 +244,7 @@ export function App(): JSX.Element {
                 onChange={(n) => update({ primary: { ...state.primary, ssMonthly: n } })}
               />
             )}
+            <SocialSecurityDetail people={scenario.people} />
           </section>
         )}
 
@@ -174,6 +260,7 @@ export function App(): JSX.Element {
           <section class="section">
             <div class="field-grid">
               <NumberField label="HSA balance" value={state.accounts.hsa.balance} step={500} prefix="$"
+                info={ACCOUNT_INFO.hsa}
                 onChange={(n) => updateAccount('hsa', { enabled: true, balance: n })} />
               <NumberField label="Plan to age" value={state.primary.planToAge} min={state.primary.age + 1} max={105}
                 onChange={(n) => update({ primary: { ...state.primary, planToAge: n } })} />

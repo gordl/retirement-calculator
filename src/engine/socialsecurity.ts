@@ -88,19 +88,45 @@ function assumedYearsWorked(person: Person): number {
   return Math.max(0, Math.min(workingUntil, 67) - 22)
 }
 
+export interface BenefitEstimate {
+  /** The monthly benefit at full retirement age — the PIA, before any claim-age adjustment. */
+  monthlyAtFRA: Dollars
+  /** What they'll actually receive monthly, given their chosen claim age. */
+  monthlyAtClaimAge: Dollars
+  claimAge: Age
+  /** Whether this came from the salary-based estimate or a number the user typed in. */
+  source: 'estimated' | 'stated'
+}
+
 /**
- * Annual Social Security benefit for a person, in today's dollars, once they
- * have claimed. Returns 0 before their claim age and for those with no benefit.
+ * The full result of the Social Security calculation for one person, meant
+ * for display. `null` means they have no benefit at all (mode `'none'`) —
+ * distinct from a benefit of $0, which the UI should not confuse with "not
+ * applicable".
  */
-export function annualBenefit(person: Person, atAge: Age): Dollars {
+export function estimatedBenefit(person: Person): BenefitEstimate | null {
   const ss = person.socialSecurity
-  if (ss.mode === 'none') return 0
-  if (atAge < ss.claimAge) return 0
+  if (ss.mode === 'none') return null
 
   const monthlyAtFRA =
     ss.mode === 'manual'
       ? ss.monthlyAtFRA
       : piaFromAIME(estimateAIME(person.salary, ss.yearsWorked ?? assumedYearsWorked(person)))
 
-  return monthlyAtFRA * claimAdjustment(ss.claimAge) * 12
+  return {
+    monthlyAtFRA,
+    monthlyAtClaimAge: monthlyAtFRA * claimAdjustment(ss.claimAge),
+    claimAge: ss.claimAge,
+    source: ss.mode === 'manual' ? 'stated' : 'estimated',
+  }
+}
+
+/**
+ * Annual Social Security benefit for a person, in today's dollars, once they
+ * have claimed. Returns 0 before their claim age and for those with no benefit.
+ */
+export function annualBenefit(person: Person, atAge: Age): Dollars {
+  const benefit = estimatedBenefit(person)
+  if (!benefit || atAge < benefit.claimAge) return 0
+  return benefit.monthlyAtClaimAge * 12
 }

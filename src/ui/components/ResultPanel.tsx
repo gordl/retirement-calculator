@@ -1,7 +1,9 @@
+import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
 import type { Result } from '../../engine/types'
 import { formatDollarsCompact, formatPercent } from '../format'
 import { BalanceChart } from './Chart'
+import { LedgerTable } from './LedgerTable'
 
 interface ResultPanelProps {
   result: Result
@@ -9,6 +11,7 @@ interface ResultPanelProps {
 }
 
 export function ResultPanel({ result, startAge }: ResultPanelProps): JSX.Element {
+  const [showLedger, setShowLedger] = useState(false)
   const path = result.fixed.paths[0]!
   const lasts = path.succeeded
 
@@ -49,6 +52,15 @@ export function ResultPanel({ result, startAge }: ResultPanelProps): JSX.Element
       </div>
 
       <BalanceChart ledger={path.ledger} startAge={startAge} />
+
+      <button
+        type="button"
+        class="section-toggle"
+        onClick={() => setShowLedger((v) => !v)}
+      >
+        {showLedger ? 'Hide year-by-year detail' : 'Show year-by-year detail'}
+      </button>
+      {showLedger && <LedgerTable ledger={path.ledger} startAge={startAge} />}
     </section>
   )
 }

@@ -32,6 +32,10 @@ export interface AccountState {
   contribution: number
   employerMatch: number
   costBasis: number
+  /** True once the user has edited cost basis directly — until then it
+   *  tracks the balance automatically, on the conservative "no gain yet"
+   *  assumption described in engine/types.ts. */
+  costBasisTouched: boolean
 }
 
 export type AccountsState = Record<AccountKind, AccountState>
@@ -59,6 +63,7 @@ const blankAccount = (): AccountState => ({
   contribution: 0,
   employerMatch: 0,
   costBasis: 0,
+  costBasisTouched: false,
 })
 
 const blankPerson = (age: number): PersonState => ({
@@ -81,7 +86,14 @@ const blankPerson = (age: number): PersonState => ({
 export function exampleState(): UIState {
   const accounts: AccountsState = {
     taxable: blankAccount(),
-    pretax: { enabled: true, balance: 120_000, contribution: 9_000, employerMatch: 2_000, costBasis: 0 },
+    pretax: {
+      enabled: true,
+      balance: 120_000,
+      contribution: 9_000,
+      employerMatch: 2_000,
+      costBasis: 0,
+      costBasisTouched: false,
+    },
     roth: blankAccount(),
     hsa: blankAccount(),
   }
@@ -214,6 +226,9 @@ export function fromScenario(scenario: Scenario): UIState {
       contribution: a.contribution ?? 0,
       employerMatch: a.kind === 'pretax' ? (a.employerMatch ?? 0) : 0,
       costBasis: a.kind === 'taxable' ? (a.costBasis ?? a.balance) : 0,
+      // A cost basis distinct from the balance can only come from a
+      // deliberate edit — an untouched field always equals the balance.
+      costBasisTouched: a.kind === 'taxable' && a.costBasis !== undefined && a.costBasis !== a.balance,
     }
   }
 
