@@ -1,9 +1,9 @@
-import type { Dollars, ModelResult, PathResult, Result, Scenario } from './types'
+import type { Dollars, ModelResult, PathResult, Percentiles, Result, Scenario, YearLedger } from './types'
 import type { ReturnModel } from './returns'
 import type { TaxModel } from './taxes'
 import { FixedReturn } from './returns'
 import { EffectiveRateTax } from './taxes'
-import { simulate } from './ledger'
+import { ACCOUNT_KINDS, simulate } from './ledger'
 
 /**
  * Orchestration: run a scenario through one or more return models.
@@ -27,6 +27,36 @@ function percentile(sorted: Dollars[], q: number): Dollars {
   return sorted[index]!
 }
 
+function fivePercentiles(sorted: Dollars[]): Percentiles {
+  return {
+    p10: percentile(sorted, 0.1),
+    p25: percentile(sorted, 0.25),
+    p50: percentile(sorted, 0.5),
+    p75: percentile(sorted, 0.75),
+    p90: percentile(sorted, 0.9),
+  }
+}
+
+function totalBalance(year: YearLedger): Dollars {
+  return ACCOUNT_KINDS.reduce((sum, kind) => sum + year.closing[kind], 0)
+}
+
+/**
+ * Percentiles of total portfolio balance, one entry per year, across all
+ * paths — the fan chart's data. `paths` all share one horizon (they're the
+ * same scenario under different return sequences), so every ledger is the
+ * same length.
+ */
+function yearlyPercentilesOf(paths: PathResult[]): Percentiles[] {
+  const years = paths[0]?.ledger.length ?? 0
+  const result: Percentiles[] = []
+  for (let t = 0; t < years; t++) {
+    const balances = paths.map((p) => totalBalance(p.ledger[t]!)).sort((a, b) => a - b)
+    result.push(fivePercentiles(balances))
+  }
+  return result
+}
+
 function summarize(model: ReturnModel, paths: PathResult[]): ModelResult {
   const endings = paths.map((p) => p.endingBalance).sort((a, b) => a - b)
   return {
@@ -38,6 +68,7 @@ function summarize(model: ReturnModel, paths: PathResult[]): ModelResult {
       p50: percentile(endings, 0.5),
       p90: percentile(endings, 0.9),
     },
+    yearlyPercentiles: yearlyPercentilesOf(paths),
   }
 }
 

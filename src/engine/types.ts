@@ -256,6 +256,22 @@ export interface PathResult {
 
 export type ReturnModelName = 'fixed' | 'monte-carlo' | 'historical'
 
+/**
+ * Five points on the distribution of an outcome across paths: the middle
+ * three quarters (p25-p75, a "typical range") nested inside the middle
+ * nine-tenths (p10-p90, a "wide range"), with the median as the center line.
+ * Chosen over a plain min/max because the tails of 1,000 simulated paths are
+ * mostly noise — the 10th/90th percentiles are already a meaningfully bad or
+ * good outcome without being dominated by one freak path.
+ */
+export interface Percentiles {
+  p10: Dollars
+  p25: Dollars
+  p50: Dollars
+  p75: Dollars
+  p90: Dollars
+}
+
 export interface ModelResult {
   model: ReturnModelName
   paths: PathResult[]
@@ -263,6 +279,9 @@ export interface ModelResult {
   successRate: number
   /** Percentiles of real ending balance across paths. */
   percentiles: { p10: Dollars; p50: Dollars; p90: Dollars }
+  /** Percentiles of total portfolio balance for each year of the plan —
+   *  the data behind the fan chart. Same length as any path's ledger. */
+  yearlyPercentiles: Percentiles[]
 }
 
 export interface Result {

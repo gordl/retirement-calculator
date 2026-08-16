@@ -39,11 +39,24 @@ function PercentileRange({ percentiles }: { percentiles: { p10: number; p50: num
   )
 }
 
+type PercentileSource = 'monteCarlo' | 'historical'
+
 export function ResultPanel({ result, startAge, realReturn }: ResultPanelProps): JSX.Element {
   const [showLedger, setShowLedger] = useState(false)
   const [showMethodology, setShowMethodology] = useState(false)
+  // Prefer simulated markets by default — it's the model most people have
+  // heard of, and there's always exactly as many of them as requested,
+  // where the historical model is capped at ~98 real windows.
+  const [percentileSource, setPercentileSource] = useState<PercentileSource>('monteCarlo')
+
   const path = result.fixed.paths[0]!
   const lasts = path.succeeded
+
+  const hasBoth = !!result.monteCarlo && !!result.historical
+  const selectedModel =
+    (percentileSource === 'monteCarlo' ? result.monteCarlo : result.historical) ??
+    result.monteCarlo ??
+    result.historical
 
   return (
     <section class="result">
@@ -88,7 +101,48 @@ export function ResultPanel({ result, startAge, realReturn }: ResultPanelProps):
         )}
       </div>
 
-      <BalanceChart ledger={path.ledger} startAge={startAge} />
+      {hasBoth && (
+        <div class="chart-toggle">
+          <button
+            type="button"
+            class={percentileSource === 'monteCarlo' ? 'active' : undefined}
+            onClick={() => setPercentileSource('monteCarlo')}
+          >
+            Simulated markets
+          </button>
+          <button
+            type="button"
+            class={percentileSource === 'historical' ? 'active' : undefined}
+            onClick={() => setPercentileSource('historical')}
+          >
+            Historical (1928–2025)
+          </button>
+        </div>
+      )}
+
+      <BalanceChart ledger={path.ledger} startAge={startAge} band={selectedModel?.yearlyPercentiles} />
+
+      {selectedModel && (
+        <div class="chart-legend">
+          <span class="chart-legend-item">
+            <span class="chart-legend-swatch chart-legend-swatch--fixed" />
+            Steady-return baseline
+          </span>
+          <span class="chart-legend-item">
+            <span class="chart-legend-swatch chart-legend-swatch--median" />
+            Median outcome
+          </span>
+          <span class="chart-legend-item">
+            <span class="chart-legend-swatch chart-legend-swatch--inner" />
+            25th–75th percentile
+          </span>
+          <span class="chart-legend-item">
+            <span class="chart-legend-swatch chart-legend-swatch--outer" />
+            10th–90th percentile
+            <InfoTip text={MODEL_INFO.percentiles} />
+          </span>
+        </div>
+      )}
 
       <button
         type="button"

@@ -9,6 +9,7 @@
   --bad: #b45309;
   --bad-bg: #fffbeb;
   --card-bg: #f9fafb;
+  --band: #7c3aed;
   color-scheme: light dark;
 }
 
@@ -24,6 +25,7 @@
     --bad: #fbbf24;
     --bad-bg: #241c0a;
     --card-bg: #171a23;
+    --band: #a78bfa;
   }
 }
 
@@ -194,6 +196,96 @@ body {
   fill: none;
   stroke: var(--accent);
   stroke-width: 2;
+}
+
+.chart-band {
+  stroke: none;
+  fill: var(--band);
+}
+
+.chart-band--outer {
+  opacity: 0.1;
+}
+
+.chart-band--inner {
+  opacity: 0.22;
+}
+
+.chart-band-median {
+  fill: none;
+  stroke: var(--band);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.chart-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.chart-toggle button {
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  border: none;
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.chart-toggle button + button {
+  border-left: 1px solid var(--border);
+}
+
+.chart-toggle button.active {
+  background: var(--band);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.chart-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.chart-legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.chart-legend-swatch--outer {
+  background: var(--band);
+  opacity: 0.25;
+}
+
+.chart-legend-swatch--inner {
+  background: var(--band);
+  opacity: 0.5;
+}
+
+.chart-legend-swatch--median {
+  background: none;
+  border-top: 2px dashed var(--band);
+  height: 0;
+  align-self: center;
+}
+
+.chart-legend-swatch--fixed {
+  background: var(--accent);
 }
 
 .chart-marker-line {

@@ -217,3 +217,57 @@ describe('run() orchestration with stochastic models', () => {
     }
   })
 })
+
+describe('yearlyPercentiles — the fan chart data', () => {
+  it('has one entry per year of the plan, ordered p10 <= p25 <= p50 <= p75 <= p90', () => {
+    const persona = personaById('median-preretiree-58')
+    const years = Math.max(...persona.truth.people.map((p) => p.planToAge - p.currentAge))
+    const result = run(persona.truth, { models: [new LognormalMC(300), new HistoricalCohorts()] })
+
+    for (const model of [result.monteCarlo!, result.historical!]) {
+      expect(model.yearlyPercentiles).toHaveLength(years)
+      for (const y of model.yearlyPercentiles) {
+        expect(y.p10).toBeLessThanOrEqual(y.p25)
+        expect(y.p25).toBeLessThanOrEqual(y.p50)
+        expect(y.p50).toBeLessThanOrEqual(y.p75)
+        expect(y.p75).toBeLessThanOrEqual(y.p90)
+      }
+    }
+  })
+
+  it('agrees with the ending-balance percentiles in the final year', () => {
+    // Both are computed from the same set of path endings — the ending-balance
+    // percentiles field is redundant with the last entry of yearlyPercentiles,
+    // and they'd better actually agree.
+    const persona = personaById('median-preretiree-58')
+    const result = run(persona.truth, { models: [new LognormalMC(300)] })
+    const yp = result.monteCarlo!.yearlyPercentiles
+    const last = yp[yp.length - 1]!
+
+    expect(last.p10).toBe(result.monteCarlo!.percentiles.p10)
+    expect(last.p50).toBe(result.monteCarlo!.percentiles.p50)
+    expect(last.p90).toBe(result.monteCarlo!.percentiles.p90)
+  })
+
+  it('has a flat, single-valued percentile band for the deterministic model', () => {
+    // One path means every "percentile" is the same number — this is what
+    // the chart uses to tell it apart from a real spread.
+    const persona = personaById('median-preretiree-58')
+    const result = run(persona.truth)
+    for (const y of result.fixed.yearlyPercentiles) {
+      expect(y.p10).toBe(y.p50)
+      expect(y.p50).toBe(y.p90)
+    }
+  })
+
+  it('widens over time under Monte Carlo, since uncertainty compounds', () => {
+    const persona = personaById('dual-income-tech-35')
+    const result = run(persona.truth, { models: [new LognormalMC(500)] })
+    const yp = result.monteCarlo!.yearlyPercentiles
+
+    const spreadAt = (i: number) => yp[i]!.p90 - yp[i]!.p10
+    const early = spreadAt(3)
+    const late = spreadAt(yp.length - 1)
+    expect(late).toBeGreaterThan(early)
+  })
+})
