@@ -1,8 +1,8 @@
 import { useState } from 'preact/hooks'
 import type { JSX } from 'preact'
-import type { Result } from '../../engine/types'
+import type { LumpSum, Result } from '../../engine/types'
 import { formatDollarsCompact, formatPercent } from '../format'
-import { InfoTip } from './Field'
+import { Checkbox, InfoTip } from './Field'
 import { BalanceChart } from './Chart'
 import { LedgerTable } from './LedgerTable'
 
@@ -12,6 +12,7 @@ interface ResultPanelProps {
   /** The user's assumed real return — needed here only so the headline
    *  sentence states the actual assumption instead of a hardcoded one. */
   realReturn: number
+  lumpSums: LumpSum[]
 }
 
 const MODEL_INFO = {
@@ -41,9 +42,12 @@ function PercentileRange({ percentiles }: { percentiles: { p10: number; p50: num
 
 type PercentileSource = 'monteCarlo' | 'historical'
 
-export function ResultPanel({ result, startAge, realReturn }: ResultPanelProps): JSX.Element {
+export function ResultPanel({ result, startAge, realReturn, lumpSums }: ResultPanelProps): JSX.Element {
   const [showLedger, setShowLedger] = useState(false)
   const [showMethodology, setShowMethodology] = useState(false)
+  // Off by default — a household with several one-time amounts would
+  // otherwise crowd every other marker off the chart. Opt in, not opt out.
+  const [showLumpSums, setShowLumpSums] = useState(false)
   // Prefer simulated markets by default — it's the model most people have
   // heard of, and there's always exactly as many of them as requested,
   // where the historical model is capped at ~98 real windows.
@@ -120,7 +124,20 @@ export function ResultPanel({ result, startAge, realReturn }: ResultPanelProps):
         </div>
       )}
 
-      <BalanceChart ledger={path.ledger} startAge={startAge} band={selectedModel?.yearlyPercentiles} />
+      {lumpSums.length > 0 && (
+        <Checkbox
+          label={`Mark one-time amount${lumpSums.length > 1 ? 's' : ''} on the chart (${lumpSums.length})`}
+          checked={showLumpSums}
+          onChange={setShowLumpSums}
+        />
+      )}
+
+      <BalanceChart
+        ledger={path.ledger}
+        startAge={startAge}
+        band={selectedModel?.yearlyPercentiles}
+        lumpSums={showLumpSums ? lumpSums : undefined}
+      />
 
       {selectedModel && (
         <div class="chart-legend">

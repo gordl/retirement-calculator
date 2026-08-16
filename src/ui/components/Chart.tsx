@@ -1,6 +1,7 @@
 import type { JSX } from 'preact'
-import type { Percentiles, YearLedger } from '../../engine/types'
+import type { LumpSum, Percentiles, YearLedger } from '../../engine/types'
 import { ACCOUNT_KINDS } from '../../engine/ledger'
+import { formatDollarsCompact } from '../format'
 
 interface ChartProps {
   ledger: YearLedger[]
@@ -8,12 +9,16 @@ interface ChartProps {
   /** Yearly percentile spread from a stochastic model, if the caller has
    *  one selected — draws the fan chart behind the deterministic line. */
   band?: Percentiles[]
+  /** One-time amounts to mark on the chart — omitted (or empty) by default
+   *  since a household with several of these would otherwise clutter every
+   *  other marker off the chart. The caller decides whether to pass them. */
+  lumpSums?: LumpSum[]
 }
 
 interface Marker {
   index: number
   label: string
-  variant: 'retire' | 'ss' | 'depleted'
+  variant: 'retire' | 'ss' | 'depleted' | 'lumpsum'
 }
 
 export type TextAnchor = 'start' | 'middle' | 'end'
@@ -88,7 +93,7 @@ function bandPath(lower: number[], upper: number[], x: (i: number) => number, y:
  *  model's percentile spread, if provided, draws as a fan behind it. No
  *  charting library — this is still simple enough to hand-roll and it
  *  keeps the bundle tiny. */
-export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Element {
+export function BalanceChart({ ledger, startAge, band, lumpSums }: ChartProps): JSX.Element {
   const width = 640
   const height = 260
   const padding = { top: 46, right: 12, bottom: 24, left: 56 }
@@ -124,15 +129,27 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
   if (depletedIndex >= 0) {
     markers.push({ index: depletedIndex, label: 'Money runs out', variant: 'depleted' })
   }
+  for (const lump of lumpSums ?? []) {
+    const index = lump.atAge - startAge
+    if (index < 0 || index >= n) continue // outside the plotted horizon
+    markers.push({
+      index,
+      label: `${lump.label || 'One-time amount'}: ${formatDollarsCompact(lump.amount)}`,
+      variant: 'lumpsum',
+    })
+  }
 
-  const markerBoxes: (LabelBox & { index: number })[] = markers.map((m) => {
+  const markerBoxes: (LabelBox & { index: number })[] = markers.map((m, i) => {
     const mx = x(m.index)
     // Clamp the text anchor near the chart edges so labels don't clip.
     const nearLeft = mx < padding.left + 60
     const nearRight = mx > width - padding.right - 60
     const anchor: TextAnchor = nearLeft ? 'start' : nearRight ? 'end' : 'middle'
     return {
-      key: `${m.variant}-${m.index}`,
+      // Multiple lump sums can land in the same year, so the marker's own
+      // position in the list — not just its variant and chart index — has
+      // to be part of the key, or two same-year lump sums would collide.
+      key: `${m.variant}-${m.index}-${i}`,
       index: m.index,
       x: mx,
       anchor,
@@ -191,8 +208,8 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
       )}
       <path d={linePath} class="chart-line" />
 
-      {markers.map((m) => {
-        const box = markerBoxes.find((b) => b.index === m.index && b.key === `${m.variant}-${m.index}`)!
+      {markers.map((m, i) => {
+        const box = markerBoxes[i]!
         const markerBand = labelBands.get(box.key) ?? 0
         const labelY = 10 + markerBand * lineHeight
         return (

@@ -210,7 +210,12 @@ export function App(): JSX.Element {
         </p>
       </header>
 
-      <ResultPanel result={result} startAge={state.primary.age} realReturn={state.realReturn} />
+      <ResultPanel
+        result={result}
+        startAge={state.primary.age}
+        realReturn={state.realReturn}
+        lumpSums={scenario.lumpSums}
+      />
 
       <form class="form" onSubmit={(e) => e.preventDefault()}>
         <section class="section">

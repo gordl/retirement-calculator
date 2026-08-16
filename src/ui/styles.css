@@ -308,6 +308,12 @@ body {
   fill: var(--bad);
 }
 
+.chart-marker--lumpsum .chart-marker-line,
+.chart-marker--lumpsum .chart-marker-label {
+  stroke: var(--good);
+  fill: var(--good);
+}
+
 .ledger-table-wrap {
   margin-top: 14px;
   max-height: 360px;
