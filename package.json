@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "profile": "vitest run tests/library-profile.test.ts --disable-console-intercept"
   },
   "keywords": [
     "retirement",
