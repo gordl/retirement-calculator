@@ -134,11 +134,21 @@ export function simulate(
       if (stream.taxable) taxableOther += amount
     }
 
-    let lumpSumTotal = 0
+    // A lump sum with a negative amount is a one-time *cost* — a new roof, a
+    // car, an entry fee, helping a child with a down payment. It is handled
+    // as a spending need below rather than subtracted from a single account,
+    // because forcing it into one account can drive that balance negative.
+    // Only inflows are taxable: a cost is not a deduction.
+    let lumpSumDeposits = 0
+    let oneTimeCosts = 0
     for (const lump of lumpSums) {
       if (lump.atAge !== primaryAge) continue
-      lumpSumTotal += lump.amount
-      if (lump.taxable) taxableOther += lump.amount
+      if (lump.amount >= 0) {
+        lumpSumDeposits += lump.amount
+        if (lump.taxable) taxableOther += lump.amount
+      } else {
+        oneTimeCosts += -lump.amount
+      }
     }
 
     // --- Contributions ------------------------------------------------------
@@ -161,18 +171,22 @@ export function simulate(
       }
     }
 
-    // Lump sums land in an account and carry full basis if already taxed.
+    // Incoming lump sums land in an account and carry full basis if already
+    // taxed. Costs are excluded here — see `oneTimeCosts` above.
     for (const lump of lumpSums) {
-      if (lump.atAge !== primaryAge) continue
+      if (lump.atAge !== primaryAge || lump.amount < 0) continue
       balance[lump.into] += lump.amount
       if (lump.into === 'taxable') taxableBasis += lump.amount
     }
 
     // --- Spending need ------------------------------------------------------
+    // One-time costs count in every year, retired or not: unlike recurring
+    // spending (which pre-retirement wages are assumed to cover), a lump-sum
+    // cost is an explicit event against the plan.
     const inDrawdown = t >= retirementStart
-    let spendingNeed = 0
+    let spendingNeed = oneTimeCosts
     if (inDrawdown) {
-      spendingNeed = spending.annual * spendingMultiplier(spending.path, t - retirementStart)
+      spendingNeed += spending.annual * spendingMultiplier(spending.path, t - retirementStart)
       for (const e of expenses) {
         if (primaryAge < e.startAge) continue
         if (e.endAge !== undefined && primaryAge > e.endAge) continue
@@ -256,7 +270,7 @@ export function simulate(
       socialSecurity,
       pensionIncome,
       otherIncome,
-      lumpSums: lumpSumTotal,
+      lumpSums: lumpSumDeposits,
       contributions,
       growth,
       savedSurplus,

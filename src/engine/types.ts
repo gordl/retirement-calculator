@@ -221,6 +221,8 @@ export interface YearLedger {
   socialSecurity: Dollars
   pensionIncome: Dollars
   otherIncome: Dollars
+  /** Incoming lump sums only. One-time *costs* (negative lump sums) appear
+   *  in `spendingNeed`, since that's how they're funded. */
   lumpSums: Dollars
 
   contributions: Dollars

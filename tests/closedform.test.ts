@@ -297,3 +297,95 @@ describe('non-COLA income erodes in real terms', () => {
     for (const y of ledger) expect(y.pensionIncome).toBeCloseTo(40_000, 6)
   })
 })
+
+describe('one-time amounts', () => {
+  // A lump sum with a negative amount is a one-time cost. Before these
+  // tests, a cost was subtracted straight out of its target account, which
+  // drove that balance negative whenever the cost exceeded it — a state the
+  // engine's own invariants say is impossible.
+
+  const retiree = (lumpSums: Parameters<typeof scenario>[0]['lumpSums']) =>
+    scenario({
+      people: [primary({ age: 65, retireAge: 65, planToAge: 85, salary: 0, ss: ssNone })],
+      accounts: [account('roth', 50_000), account('pretax', 500_000)],
+      lumpSums,
+      spending: 20_000,
+      assumptions: { realReturn: 0, effectiveTaxRate: 0 },
+    })
+
+  it('funds a one-time cost across accounts in withdrawal order, never going negative', () => {
+    // $200k cost against a $50k Roth: the Roth empties, the rest comes from
+    // pre-tax, and no account ends the year below zero.
+    const { ledger } = simulate(
+      retiree([{ label: 'Huge cost', amount: -200_000, atAge: 70, into: 'roth', taxable: false }]),
+      flatReturns(20, 0),
+      new NoTax(),
+    )
+
+    for (const y of ledger) {
+      for (const kind of ACCOUNT_KINDS) {
+        expect(y.closing[kind], `year ${y.year} ${kind}`).toBeGreaterThanOrEqual(-1e-6)
+      }
+    }
+  })
+
+  it('counts a one-time cost as spending in the year it lands, and only that year', () => {
+    const { ledger } = simulate(
+      retiree([{ label: 'New roof', amount: -40_000, atAge: 70, into: 'roth', taxable: false }]),
+      flatReturns(20, 0),
+      new NoTax(),
+    )
+
+    expect(ledger[5]!.spendingNeed).toBeCloseTo(20_000 + 40_000, 6)
+    expect(ledger[4]!.spendingNeed).toBeCloseTo(20_000, 6)
+    expect(ledger[6]!.spendingNeed).toBeCloseTo(20_000, 6)
+    // A cost is not an inflow, so it must not show up as one.
+    expect(ledger[5]!.lumpSums).toBe(0)
+  })
+
+  it('still deposits an incoming lump sum into its chosen account', () => {
+    const { ledger } = simulate(
+      retiree([{ label: 'Inheritance', amount: 100_000, atAge: 70, into: 'roth', taxable: false }]),
+      flatReturns(20, 0),
+      new NoTax(),
+    )
+
+    expect(ledger[5]!.lumpSums).toBeCloseTo(100_000, 6)
+    expect(ledger[5]!.closing.roth).toBeGreaterThan(ledger[4]!.closing.roth)
+  })
+
+  it('does not treat a cost as a tax deduction', () => {
+    // Taxable ordinary income should never be pushed negative by a cost —
+    // taxes owed for the year stay at zero, not below.
+    const s = scenario({
+      people: [primary({ age: 65, retireAge: 65, planToAge: 85, salary: 0, ss: ssNone })],
+      accounts: [account('roth', 900_000)],
+      lumpSums: [{ label: 'Big cost', amount: -100_000, atAge: 70, into: 'roth', taxable: true }],
+      spending: 20_000,
+      assumptions: { realReturn: 0, effectiveTaxRate: 0.25 },
+    })
+
+    const { ledger } = simulate(s, flatReturns(20, 0), new EffectiveRateTax(0.25))
+    expect(ledger[5]!.taxes).toBeGreaterThanOrEqual(0)
+  })
+
+  it('reports a shortfall rather than a negative balance when a cost breaks the plan', () => {
+    const result = simulate(
+      scenario({
+        people: [primary({ age: 65, retireAge: 65, planToAge: 85, salary: 0, ss: ssNone })],
+        accounts: [account('roth', 100_000)],
+        lumpSums: [{ label: 'Ruinous cost', amount: -500_000, atAge: 70, into: 'roth', taxable: false }],
+        spending: 10_000,
+        assumptions: { realReturn: 0, effectiveTaxRate: 0 },
+      }),
+      flatReturns(20, 0),
+      new NoTax(),
+    )
+
+    expect(result.succeeded).toBe(false)
+    expect(result.depletedAtAge).toBe(70)
+    for (const y of result.ledger) {
+      for (const kind of ACCOUNT_KINDS) expect(y.closing[kind]).toBeGreaterThanOrEqual(-1e-6)
+    }
+  })
+})
