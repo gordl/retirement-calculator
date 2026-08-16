@@ -114,6 +114,60 @@ body {
   color: var(--muted);
 }
 
+.result-stat-range {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.result-stat-range strong {
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.result-stat-range-label {
+  width: 100%;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  opacity: 0.8;
+}
+
+.result-stat-range-sep {
+  font-size: 0.72rem;
+}
+
+.result-stat-range-note {
+  font-size: 0.75rem;
+}
+
+.methodology {
+  margin: 4px 0 16px;
+  padding: 16px;
+  border-radius: 8px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.methodology-item h3 {
+  margin: 0 0 4px;
+  font-size: 0.88rem;
+}
+
+.methodology-item p {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
 .chart {
   width: 100%;
   height: auto;

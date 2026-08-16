@@ -188,7 +188,7 @@ export function App(): JSX.Element {
         </p>
       </header>
 
-      <ResultPanel result={result} startAge={state.primary.age} />
+      <ResultPanel result={result} startAge={state.primary.age} realReturn={state.realReturn} />
 
       <form class="form" onSubmit={(e) => e.preventDefault()}>
         <section class="section">
