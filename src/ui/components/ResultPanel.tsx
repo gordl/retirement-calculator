@@ -22,7 +22,7 @@ const MODEL_INFO = {
   historical:
     "Instead of random numbers, this replays what markets actually did. Your plan is run starting in 1928, then 1929, then 1930, and so on through 2025, using the real historical sequence of returns and inflation from each starting year. It's the harshest, most honest test available: if your plan survives the person who retired into the 1929 crash or the 1966 stagflation stretch, it can survive nearly anything the future plausibly holds.",
   percentiles:
-    'These show how the ending balance varies across those 1,000 simulated — or ~100 historical — outcomes, sorted worst to best. The 10th percentile is a rough worst case: only 1 in 10 outcomes ended lower. The 90th percentile is a rough best case. The 50th percentile (the median) is the typical outcome — half did better, half did worse.',
+    "The shaded band is the 25th-75th percentile — the middle half of outcomes across those 1,000 simulated (or ~100 historical) paths, sorted worst to best. The dashed line is the median: half of outcomes did better, half did worse. The numbers above the chart (\"$0 to $3.1M\") go a bit wider, to the 10th and 90th percentile, so you can see roughly how bad the bad outcomes get without letting a handful of extreme paths stretch the chart until everything else looks flat.",
 } as const
 
 function PercentileRange({ percentiles }: { percentiles: { p10: number; p50: number; p90: number } }): JSX.Element {
@@ -135,10 +135,6 @@ export function ResultPanel({ result, startAge, realReturn }: ResultPanelProps):
           <span class="chart-legend-item">
             <span class="chart-legend-swatch chart-legend-swatch--inner" />
             25th–75th percentile
-          </span>
-          <span class="chart-legend-item">
-            <span class="chart-legend-swatch chart-legend-swatch--outer" />
-            10th–90th percentile
             <InfoTip text={MODEL_INFO.percentiles} />
           </span>
         </div>

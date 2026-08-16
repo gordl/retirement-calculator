@@ -193,25 +193,28 @@ export function App(): JSX.Element {
       <form class="form" onSubmit={(e) => e.preventDefault()}>
         <section class="section">
           <h2>About you</h2>
+          <div class="subheading">You</div>
           <div class="field-grid">
             <NumberField label="Your age" value={state.primary.age} min={18} max={99}
               onChange={(n) => update({ primary: { ...state.primary, age: n } })} />
-            <NumberField label="Salary" value={state.primary.salary} step={1000} prefix="$"
+            <NumberField label="Your salary" value={state.primary.salary} step={1000} prefix="$"
               onChange={(n) => update({ primary: { ...state.primary, salary: n } })} />
-            <NumberField label="Retirement age" value={state.primary.retireAge} min={state.primary.age} max={80}
+            <NumberField label="Your retirement age" value={state.primary.retireAge} min={state.primary.age} max={80}
               onChange={(n) => update({ primary: { ...state.primary, retireAge: n } })} />
-            <NumberField label="401(k)/IRA balance" value={state.accounts.pretax.balance} step={1000} prefix="$"
-              hint="Traditional 401(k), 403(b), or IRA"
+          </div>
+
+          <div class="subheading">Household</div>
+          <div class="field-grid">
+            <NumberField label="Household 401(k)/IRA balance" value={state.accounts.pretax.balance} step={1000} prefix="$"
+              hint="Combined with your spouse's, if you add one below. Traditional 401(k), 403(b), or IRA."
               info={ACCOUNT_INFO.pretax}
               onChange={(n) => updateAccount('pretax', { enabled: true, balance: n })} />
-          </div>
-          <div class="field-grid">
             <NumberField
-              label="Annual spending in retirement"
+              label="Household spending in retirement"
               value={state.spendingAnnual}
               step={1000}
               prefix="$"
-              hint={state.spendingTouched ? undefined : 'Estimated from your income — edit if you know your number'}
+              hint={state.spendingTouched ? 'Combined spending for the whole household' : 'Estimated from your income — edit if you know your number'}
               onChange={(n) => update({ spendingAnnual: n, spendingTouched: true })}
             />
           </div>
@@ -227,6 +230,7 @@ export function App(): JSX.Element {
 
         {state.showMore && (
           <section class="section">
+            <div class="subheading">Spouse</div>
             <Checkbox
               label="I have a spouse or partner in this plan"
               checked={state.hasSpouse}
@@ -243,31 +247,37 @@ export function App(): JSX.Element {
               </div>
             )}
 
+            <div class="subheading">Pensions</div>
             <PensionFields
-              label="I have a pension"
+              label="Your pension"
               startAgeMin={state.primary.age}
               person={state.primary}
               onChange={(patch) => update({ primary: { ...state.primary, ...patch } })}
             />
             {state.hasSpouse && (
               <PensionFields
-                label="My spouse has a pension"
+                label="Spouse's pension"
                 startAgeMin={state.spouse.age}
                 person={state.spouse}
                 onChange={(patch) => update({ spouse: { ...state.spouse, ...patch } })}
               />
             )}
 
+            <div class="subheading">Household accounts</div>
+            <p class="subheading-note">
+              These are combined totals — yours and your spouse's added together, not separate
+              per-person figures.
+            </p>
             <div class="field-grid">
-              <NumberField label="401(k)/IRA contribution" value={state.accounts.pretax.contribution} step={500} prefix="$"
-                hint="Your contribution plus any employer match, per year"
+              <NumberField label="Household 401(k)/IRA contribution" value={state.accounts.pretax.contribution} step={500} prefix="$"
+                hint="Everyone's contributions plus any employer match, per year"
                 onChange={(n) => updateAccount('pretax', { contribution: n })} />
-              <NumberField label="Roth IRA/401(k) balance" value={state.accounts.roth.balance} step={1000} prefix="$"
+              <NumberField label="Household Roth balance" value={state.accounts.roth.balance} step={1000} prefix="$"
                 info={ACCOUNT_INFO.roth}
                 onChange={(n) => updateAccount('roth', { enabled: true, balance: n })} />
             </div>
             <div class="field-grid">
-              <NumberField label="Brokerage/savings balance" value={state.accounts.taxable.balance} step={1000} prefix="$"
+              <NumberField label="Household brokerage/savings balance" value={state.accounts.taxable.balance} step={1000} prefix="$"
                 info={ACCOUNT_INFO.taxable}
                 onChange={(n) => {
                   const t = state.accounts.taxable
@@ -287,6 +297,7 @@ export function App(): JSX.Element {
               )}
             </div>
 
+            <div class="subheading">Your Social Security</div>
             <SelectField
               label="Do you know your Social Security benefit?"
               value={state.primary.ssMode}
@@ -306,6 +317,12 @@ export function App(): JSX.Element {
                 onChange={(n) => update({ primary: { ...state.primary, ssMonthly: n } })}
               />
             )}
+            {state.hasSpouse && (
+              <p class="subheading-note">
+                Your spouse's benefit is always estimated automatically from their salary — see
+                the estimate below.
+              </p>
+            )}
             <SocialSecurityDetail people={scenario.people} />
           </section>
         )}
@@ -320,16 +337,20 @@ export function App(): JSX.Element {
 
         {state.showAdvanced && (
           <section class="section">
+            <div class="subheading">Your plan</div>
             <div class="field-grid">
-              <NumberField label="HSA balance" value={state.accounts.hsa.balance} step={500} prefix="$"
-                info={ACCOUNT_INFO.hsa}
-                onChange={(n) => updateAccount('hsa', { enabled: true, balance: n })} />
               <NumberField label="Plan to age" value={state.primary.planToAge} min={state.primary.age + 1} max={105}
+                hint="Your planning horizon — how long the money needs to last"
                 onChange={(n) => update({ primary: { ...state.primary, planToAge: n } })} />
               <NumberField label="Your Social Security claim age" value={state.primary.ssClaimAge} min={62} max={70}
                 onChange={(n) => update({ primary: { ...state.primary, ssClaimAge: n } })} />
             </div>
+
+            <div class="subheading">Household</div>
             <div class="field-grid">
+              <NumberField label="Household HSA balance" value={state.accounts.hsa.balance} step={500} prefix="$"
+                info={ACCOUNT_INFO.hsa}
+                onChange={(n) => updateAccount('hsa', { enabled: true, balance: n })} />
               <NumberField label="Assumed real return" value={Math.round(state.realReturn * 1000) / 10} step={0.1} suffix="%"
                 onChange={(n) => update({ realReturn: n / 100 })} />
               <NumberField label="Stock allocation" value={Math.round(state.stockAllocation * 100)} step={5} suffix="%"
@@ -338,7 +359,7 @@ export function App(): JSX.Element {
                 onChange={(n) => update({ effectiveTaxRate: n / 100 })} />
             </div>
             <SelectField
-              label="Spending pattern"
+              label="Household spending pattern"
               value={state.spendingPath}
               options={[
                 { value: 'flat', label: 'Flat (constant real spending)' },

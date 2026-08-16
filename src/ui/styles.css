@@ -203,12 +203,8 @@ body {
   fill: var(--band);
 }
 
-.chart-band--outer {
-  opacity: 0.1;
-}
-
 .chart-band--inner {
-  opacity: 0.22;
+  opacity: 0.28;
 }
 
 .chart-band-median {
@@ -265,11 +261,6 @@ body {
   width: 10px;
   height: 10px;
   border-radius: 2px;
-}
-
-.chart-legend-swatch--outer {
-  background: var(--band);
-  opacity: 0.25;
 }
 
 .chart-legend-swatch--inner {
@@ -370,6 +361,27 @@ body {
 .section h2 {
   font-size: 1.05rem;
   margin: 0 0 14px;
+}
+
+/* Groups fields within a section as "yours", "your spouse's", or
+ * "household" — the ambiguity a mixed-ownership form invites otherwise. */
+.subheading {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 18px 0 8px;
+}
+
+.subheading:first-child {
+  margin-top: 0;
+}
+
+.subheading-note {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin: -4px 0 12px;
 }
 
 .section-toggle {

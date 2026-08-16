@@ -53,7 +53,10 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
   const n = ledger.length
 
   const bandValues = band && band.length === n ? band : undefined
-  const maxValue = Math.max(1, ...totals, ...(bandValues?.map((p) => p.p90) ?? []))
+  // Scale to the drawn band (p25-p75), not the wider p10-p90 spread — a
+  // single outlier path in the tail was blowing out the axis and squashing
+  // everything else in the chart flat.
+  const maxValue = Math.max(1, ...totals, ...(bandValues?.map((p) => p.p75) ?? []))
 
   const x = (i: number) => padding.left + (i / Math.max(1, n - 1)) * (width - padding.left - padding.right)
   const y = (v: number) => height - padding.bottom - (v / maxValue) * (height - padding.top - padding.bottom)
@@ -109,10 +112,6 @@ export function BalanceChart({ ledger, startAge, band }: ChartProps): JSX.Elemen
 
       {bandValues && (
         <>
-          <path
-            d={bandPath(bandValues.map((p) => p.p10), bandValues.map((p) => p.p90), x, y)}
-            class="chart-band chart-band--outer"
-          />
           <path
             d={bandPath(bandValues.map((p) => p.p25), bandValues.map((p) => p.p75), x, y)}
             class="chart-band chart-band--inner"
