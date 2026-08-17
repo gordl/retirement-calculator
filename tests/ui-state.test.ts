@@ -117,6 +117,51 @@ describe('UI state conversions', () => {
     })
   })
 
+  describe('pre-retirement spending', () => {
+    it('is off by default, leaving working years contribution-driven', () => {
+      expect(toScenario(exampleState()).spending.preRetirement).toBeUndefined()
+    })
+
+    it('is omitted when enabled but left at zero, rather than budgeting $0/yr', () => {
+      const state = exampleState()
+      state.preRetirementEnabled = true
+      state.preRetirementSpending = 0
+      expect(toScenario(state).spending.preRetirement).toBeUndefined()
+    })
+
+    it('is carried through once entered', () => {
+      const state = exampleState()
+      state.preRetirementEnabled = true
+      state.preRetirementSpending = 72_000
+      expect(toScenario(state).spending.preRetirement).toBe(72_000)
+    })
+
+    it('round-trips through the URL codec', () => {
+      const state = exampleState()
+      state.preRetirementEnabled = true
+      state.preRetirementSpending = 72_000
+
+      const scenario = toScenario(state)
+      expect(decode(encode(scenario)).spending).toEqual(scenario.spending)
+    })
+
+    it('stays absent from a URL when unset, so old links keep their meaning', () => {
+      const scenario = toScenario(exampleState())
+      expect(encode(scenario)).not.toContain('spp')
+      expect(decode(encode(scenario)).spending.preRetirement).toBeUndefined()
+    })
+
+    it('round-trips the enabled flag back through fromScenario', () => {
+      const state = exampleState()
+      state.preRetirementEnabled = true
+      state.preRetirementSpending = 72_000
+
+      const rebuilt = fromScenario(toScenario(state))
+      expect(rebuilt.preRetirementEnabled).toBe(true)
+      expect(rebuilt.preRetirementSpending).toBe(72_000)
+    })
+  })
+
   describe('irregular incomes, expenses, and one-time amounts', () => {
     // These three were the actual bug this test block exists to guard
     // against: toScenario() silently hardcoded all three to [], so nothing

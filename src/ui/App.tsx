@@ -32,6 +32,33 @@ const ACCOUNT_INFO = {
   hsa: 'A health savings account. Contributions are tax-free through payroll, and withdrawals are tax-free too, as long as they go toward medical expenses.',
 } as const
 
+const PRE_RETIREMENT_INFO =
+  "Left blank, the plan assumes your income covers your spending while you're working, so only your stated contributions build the portfolio. Fill it in and the plan does the real arithmetic: anything left over after tax, spending and contributions gets saved, and any shortfall comes out of the portfolio — which is how you'd see a household outspending its income today."
+
+/**
+ * A starting figure for pre-retirement spending: income after tax and
+ * contributions, which is what the plan implicitly assumes while the field
+ * is off. Matches the ledger's own arithmetic, employer match included,
+ * so the first working year starts at roughly break-even.
+ *
+ * Note this does *not* leave the projection unchanged. Once a budget exists,
+ * real wage growth above flat real spending produces a surplus that gets
+ * saved — where previously it was discarded. The ending balance generally
+ * rises, and that difference is the point of the feature, not a glitch.
+ */
+function suggestedPreRetirementSpending(state: UIState): number {
+  const wages =
+    state.primary.salary + (state.hasSpouse ? state.spouse.salary : 0)
+  const contributions =
+    state.accounts.pretax.contribution +
+    state.accounts.pretax.employerMatch +
+    state.accounts.roth.contribution +
+    state.accounts.taxable.contribution +
+    state.accounts.hsa.contribution
+  const afterTax = wages * (1 - state.effectiveTaxRate)
+  return Math.max(0, Math.round((afterTax - contributions) / 1000) * 1000)
+}
+
 const COST_BASIS_INFO =
   'What you originally put in, before any growth. Only the difference between your current balance and this figure is treated as a taxable gain when you withdraw. Leave it equal to your balance if you\'re not sure — that assumes no gain yet, which slightly understates future tax.'
 
@@ -289,6 +316,35 @@ export function App(): JSX.Element {
               onChange={(n) => update({ spendingAnnual: n, spendingTouched: true })}
             />
           </div>
+
+          <Checkbox
+            label="I also want to enter what we spend now, before retiring"
+            checked={state.preRetirementEnabled}
+            onChange={(preRetirementEnabled) =>
+              update({
+                preRetirementEnabled,
+                // Seed with today's income less contributions — the figure
+                // the model already assumes implicitly — so turning this on
+                // starts from the current answer rather than from zero.
+                ...(preRetirementEnabled && state.preRetirementSpending === 0
+                  ? { preRetirementSpending: suggestedPreRetirementSpending(state) }
+                  : {}),
+              })
+            }
+          />
+          {state.preRetirementEnabled && (
+            <div class="field-grid">
+              <NumberField
+                label="Household spending now"
+                value={state.preRetirementSpending}
+                step={1000}
+                prefix="$"
+                hint="Everything you spend in a year today, including any expenses listed below"
+                info={PRE_RETIREMENT_INFO}
+                onChange={(n) => update({ preRetirementSpending: n })}
+              />
+            </div>
+          )}
         </section>
 
         <SectionToggle

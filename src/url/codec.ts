@@ -340,6 +340,11 @@ export function encode(scenario: Scenario): string {
 
   params.set('sp', encDollars(scenario.spending.annual))
   if (scenario.spending.path === 'retirement-smile') params.set('sw', '1')
+  // Omitted when unset, which is its own meaningful state — see Spending in
+  // engine/types.ts. An absent `spp` means working income covers working life.
+  if (scenario.spending.preRetirement !== undefined) {
+    params.set('spp', encDollars(scenario.spending.preRetirement))
+  }
 
   for (const p of scenario.pensions) params.append('pn', encPension(p))
   for (const i of scenario.incomes) params.append('ic', encIncome(i))
@@ -396,6 +401,7 @@ export function decode(query: string): Scenario {
     spending: {
       annual: decDollars(spendingRaw),
       path: params.get('sw') === '1' ? 'retirement-smile' : 'flat',
+      ...(params.has('spp') ? { preRetirement: decDollars(params.get('spp')!) } : {}),
     },
     assumptions: {
       inflation: params.has('ai') ? decRate(params.get('ai')!) : a.inflation,

@@ -29,13 +29,19 @@ import { spendingMultiplier } from './spending'
  * convention, which is what makes the closed-form tests exact rather than
  * approximate.
  *
- * **Accumulation is contribution-driven, not budget-driven.** Before anyone
- * retires, the portfolio changes only by contributions and growth. Pre-
- * retirement spending is not simulated against it. This is a deliberate
- * choice: modeling a working household's full budget would require users to
- * supply a precise budget they do not have, and it would double-count against
- * the contribution figure they can supply. The cost is that expenses which
- * start and end entirely before retirement have no effect on the projection.
+ * **Working years are budget-driven only if a budget is given.** If
+ * `spending.preRetirement` is set, every year runs the same full cash-flow:
+ * income in, tax and spending and contributions out, the difference either
+ * saved or withdrawn. If it is not set, the household is assumed to spend
+ * exactly what is left after tax and contributions, so working income covers
+ * working life and the portfolio moves only by contributions and growth.
+ *
+ * The second case is the conservative default and exists because most people
+ * cannot state a household budget precisely; the first is what shows a
+ * household out-spending its income, or saving well past its stated 401(k)
+ * contribution. Recurring `expenses` follow the same rule — before
+ * retirement they only bite when a budget is being modeled, since otherwise
+ * they would be double-counted against spending that was never simulated.
  */
 
 export const ACCOUNT_KINDS: AccountKind[] = ['taxable', 'pretax', 'roth', 'hsa']
@@ -181,12 +187,21 @@ export function simulate(
 
     // --- Spending need ------------------------------------------------------
     // One-time costs count in every year, retired or not: unlike recurring
-    // spending (which pre-retirement wages are assumed to cover), a lump-sum
-    // cost is an explicit event against the plan.
+    // spending, a lump-sum cost is an explicit event against the plan.
     const inDrawdown = t >= retirementStart
+    // Working-year spending is modeled only when a budget was actually given
+    // — see the note at the top of this file on why the default is not zero
+    // but "whatever income covers".
+    const budgetingWorkingYears = spending.preRetirement !== undefined
+    const spendingModeled = inDrawdown || budgetingWorkingYears
+
     let spendingNeed = oneTimeCosts
     if (inDrawdown) {
       spendingNeed += spending.annual * spendingMultiplier(spending.path, t - retirementStart)
+    } else if (budgetingWorkingYears) {
+      spendingNeed += spending.preRetirement!
+    }
+    if (spendingModeled) {
       for (const e of expenses) {
         if (primaryAge < e.startAge) continue
         if (e.endAge !== undefined && primaryAge > e.endAge) continue
@@ -245,9 +260,15 @@ export function simulate(
           taxableBasis -= taxableBasis * (gross / available)
         }
       }
-    } else if (inDrawdown && gap < 0) {
-      // Income exceeded need — common for Social-Security-heavy households in
-      // low-spending years. The surplus is saved, not vaporized.
+    } else if (spendingModeled && gap < 0) {
+      // Income exceeded need. In retirement this is common for
+      // Social-Security-heavy households in low-spending years; while working
+      // it is a household saving beyond its stated contributions. Either way
+      // the surplus is saved, not vaporized.
+      //
+      // Gated on `spendingModeled` so that a household with no stated working
+      // budget doesn't bank its entire salary every year — with spending
+      // unmodeled, the whole paycheck would look like surplus.
       savedSurplus = -gap
       balance.taxable += savedSurplus
       taxableBasis += savedSurplus

@@ -389,3 +389,107 @@ describe('one-time amounts', () => {
     }
   })
 })
+
+describe('pre-retirement household spending', () => {
+  // Working-year spending is modeled only when a budget is actually given.
+  // Left off, working income is assumed to cover working life and only
+  // contributions build the portfolio — the long-standing default, kept so
+  // that adding this feature didn't silently change every existing plan.
+
+  const working = (over: Partial<Parameters<typeof scenario>[0]> = {}) =>
+    scenario({
+      people: [
+        primary({ age: 40, retireAge: 65, planToAge: 90, salary: 100_000, ss: ssNone }),
+      ],
+      accounts: [account('pretax', 100_000, { contribution: 10_000 })],
+      spending: 50_000,
+      assumptions: { realReturn: 0, effectiveTaxRate: 0 },
+      ...over,
+    })
+
+  it('leaves working years contribution-driven when no budget is given', () => {
+    const { ledger } = simulate(working(), flatReturns(50, 0), new NoTax())
+    const y0 = ledger[0]!
+
+    expect(y0.spendingNeed).toBe(0)
+    expect(total(y0.withdrawals)).toBe(0)
+    expect(y0.savedSurplus).toBe(0)
+    // Contributions and growth only: 100k + 10k.
+    expect(total(y0.closing)).toBeCloseTo(110_000, 6)
+  })
+
+  it('saves the surplus when a budget leaves income left over', () => {
+    // $100k income, no tax, $10k contributions, $60k budget => $30k surplus.
+    const s = working({ spending: { annual: 50_000, path: 'flat', preRetirement: 60_000 } })
+    const { ledger } = simulate(s, flatReturns(50, 0), new NoTax())
+    const y0 = ledger[0]!
+
+    expect(y0.spendingNeed).toBeCloseTo(60_000, 6)
+    expect(y0.savedSurplus).toBeCloseTo(30_000, 6)
+    expect(y0.closing.taxable).toBeCloseTo(30_000, 6)
+    // The surplus is extra saving on top of the contribution, not instead.
+    expect(total(y0.closing)).toBeCloseTo(140_000, 6)
+  })
+
+  it('draws from the portfolio when a household outspends its income', () => {
+    // $100k income, $10k contributions, $130k budget => $40k short.
+    const s = working({ spending: { annual: 50_000, path: 'flat', preRetirement: 130_000 } })
+    const { ledger } = simulate(s, flatReturns(50, 0), new NoTax())
+    const y0 = ledger[0]!
+
+    expect(total(y0.withdrawals)).toBeCloseTo(40_000, 6)
+    expect(y0.savedSurplus).toBe(0)
+    expect(total(y0.closing)).toBeCloseTo(70_000, 6) // 100k + 10k − 40k
+  })
+
+  it('reconciles the year exactly in both directions', () => {
+    for (const preRetirement of [60_000, 130_000]) {
+      const s = working({ spending: { annual: 50_000, path: 'flat', preRetirement } })
+      for (const y of simulate(s, flatReturns(50, 0), new NoTax()).ledger) {
+        const open = ACCOUNT_KINDS.reduce((a, k) => a + y.opening[k], 0)
+        const close = ACCOUNT_KINDS.reduce((a, k) => a + y.closing[k], 0)
+        const drawn = ACCOUNT_KINDS.reduce((a, k) => a + y.withdrawals[k], 0)
+        expect(close, `preRetirement ${preRetirement} year ${y.year}`).toBeCloseTo(
+          open + y.growth + y.contributions + y.lumpSums + y.savedSurplus - drawn,
+          6,
+        )
+      }
+    }
+  })
+
+  it('switches to the retirement figure the year retirement starts', () => {
+    const s = working({ spending: { annual: 50_000, path: 'flat', preRetirement: 90_000 } })
+    const { ledger } = simulate(s, flatReturns(50, 0), new NoTax())
+
+    expect(ledger[24]!.primaryAge).toBe(64) // last working year
+    expect(ledger[24]!.spendingNeed).toBeCloseTo(90_000, 6)
+    expect(ledger[25]!.primaryAge).toBe(65) // first retired year
+    expect(ledger[25]!.spendingNeed).toBeCloseTo(50_000, 6)
+  })
+
+  it('counts a pre-retirement expense only once a budget is being modeled', () => {
+    const mortgage = {
+      label: 'Mortgage',
+      annual: 24_000,
+      startAge: 40,
+      endAge: 60,
+      inflationAdjusted: false,
+    }
+
+    // Without a budget, a purely pre-retirement expense has no effect —
+    // there is no simulated budget for it to come out of.
+    const without = simulate(working({ expenses: [mortgage] }), flatReturns(50, 0), new NoTax())
+    expect(without.ledger[0]!.spendingNeed).toBe(0)
+
+    // With one, it stacks on top of the stated budget.
+    const withBudget = simulate(
+      working({
+        expenses: [mortgage],
+        spending: { annual: 50_000, path: 'flat', preRetirement: 60_000 },
+      }),
+      flatReturns(50, 0),
+      new NoTax(),
+    )
+    expect(withBudget.ledger[0]!.spendingNeed).toBeCloseTo(84_000, 6)
+  })
+})

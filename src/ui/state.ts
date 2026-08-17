@@ -113,6 +113,14 @@ export interface UIState {
    *  that, the auto-estimate stops overwriting it as other fields change. */
   spendingTouched: boolean
   spendingPath: SpendingPath
+  /**
+   * Household spending before retirement. Opt-in: `preRetirementEnabled`
+   * false means "working income covers working life", which is the
+   * conservative default described on Spending in engine/types.ts. The
+   * amount is kept around while disabled so toggling doesn't lose it.
+   */
+  preRetirementEnabled: boolean
+  preRetirementSpending: number
   accounts: AccountsState
   incomes: IncomeItemState[]
   expenses: ExpenseItemState[]
@@ -239,6 +247,8 @@ export function exampleState(): UIState {
       spendingAnnual: 0,
       spendingTouched: false,
       spendingPath: 'flat',
+      preRetirementEnabled: false,
+      preRetirementSpending: 0,
       accounts,
       incomes: [],
       expenses: [],
@@ -250,6 +260,8 @@ export function exampleState(): UIState {
     })),
     spendingTouched: false,
     spendingPath: 'flat',
+    preRetirementEnabled: false,
+    preRetirementSpending: 0,
     accounts,
     incomes: [],
     expenses: [],
@@ -374,7 +386,13 @@ export function toScenario(state: UIState): Scenario {
     incomes,
     expenses,
     lumpSums,
-    spending: { annual: state.spendingAnnual, path: state.spendingPath },
+    spending: {
+      annual: state.spendingAnnual,
+      path: state.spendingPath,
+      ...(state.preRetirementEnabled && state.preRetirementSpending > 0
+        ? { preRetirement: state.preRetirementSpending }
+        : {}),
+    },
     assumptions: {
       inflation: DEFAULT_ASSUMPTIONS.inflation,
       realReturn: state.realReturn,
@@ -472,6 +490,8 @@ export function fromScenario(scenario: Scenario): UIState {
     spendingAnnual: scenario.spending.annual,
     spendingTouched: true, // a decoded URL always carries an explicit value
     spendingPath: scenario.spending.path,
+    preRetirementEnabled: scenario.spending.preRetirement !== undefined,
+    preRetirementSpending: scenario.spending.preRetirement ?? 0,
     accounts,
     incomes,
     expenses,

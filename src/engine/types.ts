@@ -170,6 +170,28 @@ export interface Spending {
   /** Annual retirement spending target in today's dollars, excluding `expenses`. */
   annual: Dollars
   path: SpendingPath
+  /**
+   * Annual household spending *before* retirement, in today's dollars.
+   *
+   * Optional, and the two states mean genuinely different things:
+   *
+   * - **Undefined** — the household is assumed to spend whatever is left
+   *   after tax and contributions. Working income exactly covers working
+   *   life, so the portfolio moves only by contributions and growth. This is
+   *   the conservative default and keeps a plan's numbers unchanged when no
+   *   budget is supplied.
+   *
+   * - **A number** — a real budget. Anything left after tax, contributions
+   *   and this figure is saved into the taxable account; anything short is
+   *   drawn from the portfolio. This is what lets the tool show a household
+   *   that is over-spending its income today, or saving well beyond its
+   *   stated 401(k) contribution.
+   *
+   * It is deliberately separate from `annual`: spending in the last working
+   * year and the first retired year are rarely the same number — a mortgage
+   * may end, commuting stops, children leave.
+   */
+  preRetirement?: Dollars
 }
 
 // ---------------------------------------------------------------------------
